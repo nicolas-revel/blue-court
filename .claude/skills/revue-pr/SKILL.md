@@ -9,6 +9,7 @@ Relire le diff complet, puis vérifier dans cet ordre. Ne signaler que des probl
 
 ## Bloquant
 
+- **Réimplémentation** : une fonction, un type ou un utilitaire qui existe déjà dans le dépôt (ou dans une dépendance déjà installée) et qui est recodé au lieu d'être réutilisé.
 - **Correction** : le code fait-il ce que disent l'issue et les specs ? Chercher un cas concret qui casse (égalité, nombre impair, 0 équipe, score limite).
 - **Règle codée en dur** : une valeur de volley (25 points, 3 sets, 2 points d'écart...) qui devrait venir de la configuration.
 - **Pureté du moteur** : dépendance runtime, `Math.random()`, `Date.now()`, mutation d'un argument, accès I/O dans `packages/engine`.

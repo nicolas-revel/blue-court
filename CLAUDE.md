@@ -21,6 +21,7 @@ Gestionnaire de tournois de volley paramétrable. Projet public, développé ave
 
 ## Règles
 
+- Toujours vérifier que quelque chose n'existe pas déjà (dans le moteur, les apps ou les dépendances installées) avant de l'implémenter. Réutiliser ou étendre plutôt que dupliquer.
 - Tout est paramétrable : aucune règle de club codée en dur. Les règles FFVB sont des valeurs par défaut.
 - Le moteur est une bibliothèque de fonctions pures. Chaque fonction a des tests unitaires et, dès qu'il y a une invariante (chaque paire se rencontre une fois, classement total...), un test par propriété avec fast-check.
 - Vocabulaire du domaine en français dans les specs, l'interface et les messages d'erreur ; identifiants de code en anglais.
