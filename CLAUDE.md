@@ -6,12 +6,16 @@ Gestionnaire de tournois de volley paramétrable. Projet public, développé ave
 
 - `docs/specs/` : la référence fonctionnelle. Lire le fichier concerné avant de coder. Si le code doit s'écarter des specs, modifier les specs dans la même PR.
 - `docs/journal/` : journal de bord daté (ce que l'IA a fait, ce qui a été repris à la main, les décisions).
+- `docs/methode.md` : la méthode de travail et le rôle de chaque élément du harness.
+- `.claude/skills/` : `implementer-issue` (déroulé d'une issue), `moteur-tests`, `specs-et-journal`, `revue-pr`.
 - `packages/engine` : moteur de tournoi en TypeScript pur (aucune dépendance runtime, aucun accès base ou réseau).
 - `apps/` : API NestJS et front Next.js, à venir.
 
 ## Commandes
 
 - `pnpm install`
+- `pnpm check` : lint, build, typecheck et tests, à lancer avant chaque push
+- `pnpm lint:fix` : corrige le formatage et les imports (Biome)
 - `pnpm build`, `pnpm typecheck`, `pnpm test` (à la racine, via Turborepo)
 - `pnpm --filter @blue-court/engine test` pour le moteur seul
 
@@ -21,7 +25,7 @@ Gestionnaire de tournois de volley paramétrable. Projet public, développé ave
 - Le moteur est une bibliothèque de fonctions pures. Chaque fonction a des tests unitaires et, dès qu'il y a une invariante (chaque paire se rencontre une fois, classement total...), un test par propriété avec fast-check.
 - Vocabulaire du domaine en français dans les specs, l'interface et les messages d'erreur ; identifiants de code en anglais.
 - Imports relatifs avec l'extension `.js` (ESM, `moduleResolution: NodeNext`).
-- Une PR = une issue. Lancer `pnpm build && pnpm typecheck && pnpm test` avant de pousser.
+- Une PR = une issue, en suivant le skill `implementer-issue`. `pnpm check` doit passer avant de pousser.
 
 ## Vocabulaire
 

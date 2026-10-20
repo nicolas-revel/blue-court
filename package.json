@@ -9,9 +9,12 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
     "turbo": "^2.11.9",
     "typescript": "^7.0.2"
   }

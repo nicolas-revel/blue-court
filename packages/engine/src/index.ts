@@ -1,1 +1,1 @@
-export { roundRobin, type Pairing } from "./round-robin.js";
+export { type Pairing, roundRobin } from "./round-robin.js";
