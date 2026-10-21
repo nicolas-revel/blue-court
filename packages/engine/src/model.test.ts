@@ -24,6 +24,7 @@ describe("tournament model", () => {
       rankingPoints: { ...FFVB_RANKING_POINTS, draw: 2 },
       tieBreakers: FFVB_TIE_BREAKERS,
       qualification: { kind: "all" },
+      refereeing: "restingTeam",
     };
     const afternoon: Phase = {
       id: "afternoon",
@@ -33,6 +34,7 @@ describe("tournament model", () => {
       rankingPoints: FFVB_RANKING_POINTS,
       tieBreakers: ["wins", "setRatio", "pointRatio", "headToHead"],
       qualification: { kind: "all" },
+      refereeing: "none",
     };
     const tournament: Tournament = {
       id: "christmas-2026",

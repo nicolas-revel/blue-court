@@ -23,7 +23,7 @@ export type MatchRules =
       readonly kind: "sets";
       readonly setsToWin: number;
       readonly set: SetRules;
-      /** Rules of the deciding set, when it differs from the other sets. */
+      /** Rules of the deciding set (see `RankingPoints.tieBreakWin`), when they differ. */
       readonly tieBreakSet?: SetRules;
     }
   /** Every set is played, so an even number of sets can end in a draw. */
@@ -39,8 +39,9 @@ export type MatchRules =
 export interface RankingPoints {
   readonly win: number;
   /**
-   * Win in the deciding set, the last possible set of a "sets to win" match (3-2 when 3 sets
-   * are needed). Other formats have no deciding set and use `win` and `loss`.
+   * Win in the deciding set, the last possible set of a "sets to win" match with at least 2
+   * sets to win (3-2 when 3 sets are needed, 2-1 when 2 are). One-set matches and other
+   * formats have no deciding set and use `win` and `loss`.
    */
   readonly tieBreakWin: number;
   /** Loss in the deciding set, see `tieBreakWin`. */
@@ -92,6 +93,8 @@ export interface Phase {
   readonly tieBreakers: readonly TieBreaker[];
   /** Who goes to the next phase. */
   readonly qualification: Qualification;
+  /** Whether a resting team is assigned to referee each match. */
+  readonly refereeing: "restingTeam" | "none";
 }
 
 export interface Tournament {

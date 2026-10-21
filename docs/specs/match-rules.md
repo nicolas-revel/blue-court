@@ -6,9 +6,9 @@ Each phase has its own rules, prefilled with FFVB rules.
 | --- | --- |
 | End of match | Sets to win (1, 2 or 3), fixed number of sets, or time limit |
 | Points per set | Any (15, 21, 25...), 2-point margin or not, optional cap |
-| Tie-break set | Yes or no, number of points ("sets to win" matches only) |
+| Tie-break set | Yes or no, number of points (rules of the deciding set, so only for "sets to win" matches with at least 2 sets to win) |
 | Draw | Allowed or not, for fixed sets and timed matches (a "sets to win" match cannot end in a draw) |
-| Ranking points | For a win, a loss, a win or loss in the deciding set, a draw, a win by forfeit and a forfeit. The deciding set is the last possible set of a "sets to win" match (3-2 when 3 sets are needed); other formats have none |
+| Ranking points | For a win, a loss, a win or loss in the deciding set, a draw, a win by forfeit and a forfeit. The deciding set is the last possible set of a "sets to win" match with at least 2 sets to win (3-2 when 3 sets are needed, 2-1 when 2 are); one-set matches and other formats have none |
 | Pool tie-breakers | Order chosen among: wins, ranking points, set ratio, point ratio, head-to-head, random draw |
 | Forfeit in ratios | A forfeit counts as the shortest possible win for the other team, every set won to 0 (3-0 and 25-0 per set under FFVB); a timed match counts as a win to 0 |
 | Refereeing | Automatic assignment of a resting team, or none |
