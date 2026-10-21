@@ -10,6 +10,7 @@ Le moteur (`packages/engine`) est une bibliothèque de fonctions pures : aucune 
 ## Règles de code
 
 - Avant d'écrire une fonction, vérifier dans `src/index.ts` et les autres modules qu'elle n'existe pas déjà sous un autre nom. Réutiliser ou étendre plutôt que dupliquer.
+- La pureté (pas d'import externe, de Node, de console, d'aléa ni d'horloge) est vérifiée par Biome ; garder le reste en tête :
 - Fonctions pures, entrées en lecture seule (`readonly`), pas de mutation des arguments.
 - L'aléa passe par une graine explicite (`seed`), jamais par `Math.random()`.
 - Les erreurs métier sont des messages en français, compréhensibles par un organisateur.

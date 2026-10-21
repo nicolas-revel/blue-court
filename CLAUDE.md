@@ -7,7 +7,7 @@ Gestionnaire de tournois de volley paramétrable. Projet public, développé ave
 - `docs/specs/` : la référence fonctionnelle. Lire le fichier concerné avant de coder. Si le code doit s'écarter des specs, modifier les specs dans la même PR.
 - `docs/journal/` : journal de bord daté (ce que l'IA a fait, ce qui a été repris à la main, les décisions).
 - `docs/methode.md` : la méthode de travail et le rôle de chaque élément du harness.
-- `.claude/skills/` : `implementer-issue` (déroulé d'une issue), `moteur-tests`, `specs-et-journal`, `revue-pr`.
+- `.claude/skills/` : `grill`, `creer-spec`, `implementer-issue`, `moteur-tests`, `regle-de-lint`, `specs-et-journal`, `revue-pr`.
 - `packages/engine` : moteur de tournoi en TypeScript pur (aucune dépendance runtime, aucun accès base ou réseau).
 - `apps/` : API NestJS et front Next.js, à venir.
 
@@ -23,9 +23,10 @@ Gestionnaire de tournois de volley paramétrable. Projet public, développé ave
 
 - Toujours vérifier que quelque chose n'existe pas déjà (dans le moteur, les apps ou les dépendances installées) avant de l'implémenter. Réutiliser ou étendre plutôt que dupliquer.
 - Tout est paramétrable : aucune règle de club codée en dur. Les règles FFVB sont des valeurs par défaut.
-- Le moteur est une bibliothèque de fonctions pures. Chaque fonction a des tests unitaires et, dès qu'il y a une invariante (chaque paire se rencontre une fois, classement total...), un test par propriété avec fast-check.
+- Le moteur est une bibliothèque de fonctions pures, testée par des exemples et des tests par propriété (skill `moteur-tests`).
 - Vocabulaire du domaine en français dans les specs, l'interface et les messages d'erreur ; identifiants de code en anglais.
-- Imports relatifs avec l'extension `.js` (ESM, `moduleResolution: NodeNext`).
+- Une convention vérifiable par un outil devient une règle (Biome, plugin GritQL, test), pas une ligne de ce fichier : skill `regle-de-lint`. Biome impose déjà les extensions `.js`, l'absence de `!` non nul, et la pureté du moteur (aucun import externe, ni Node, ni console, ni aléa ou horloge).
+- Nouvelle fonctionnalité : `grill` puis `creer-spec` avant le code.
 - Une PR = une issue, en suivant le skill `implementer-issue`. `pnpm check` doit passer avant de pousser.
 
 ## Vocabulaire

@@ -16,6 +16,10 @@ Relire le diff complet, puis vérifier dans cet ordre. Ne signaler que des probl
 - **Tests** : invariante sans test par propriété, test affaibli ou supprimé, cas limite non couvert.
 - **Specs et journal** : comportement modifié sans mise à jour de `docs/specs/`, PR sans entrée de journal.
 
+## À remonter
+
+- Une erreur qu'une règle de lint aurait pu empêcher : proposer la règle (skill `regle-de-lint`).
+
 ## Non bloquant
 
 - Lisibilité, nommage (identifiants en anglais, messages en français), duplication évitable.
