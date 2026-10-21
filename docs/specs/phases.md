@@ -1,6 +1,6 @@
 # Tournament phases
 
-A tournament is a **sequence of phases**. Each phase has its format, its match rules (see [match-rules.md](match-rules.md)) and a qualification rule for the next one (for example the top 2 of each pool, or the 4 best third-placed teams).
+A tournament is a **sequence of phases**. Each phase has its format, its match rules (see [match-rules.md](match-rules.md)) and a qualification rule for the next one (everyone, the top 2 of each pool plus optionally the 4 best third-placed teams, or the top N of the phase's overall ranking).
 
 | Phase format | How it works | Matches per team |
 | --- | --- | --- |

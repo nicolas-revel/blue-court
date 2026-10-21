@@ -56,6 +56,15 @@ describe("tournament model", () => {
     expect(new Set(formats.map((f) => f.kind)).size).toBe(5);
   });
 
+  it("expresses qualification per pool, overall, or for everyone", () => {
+    const rules: Phase["qualification"][] = [
+      { kind: "all" },
+      { kind: "topPerPool", count: 2, bestAtRank: { rank: 3, count: 4 } },
+      { kind: "topOverall", count: 8 },
+    ];
+    expect(rules.map((q) => q.kind)).toEqual(["all", "topPerPool", "topOverall"]);
+  });
+
   it("records set scores, timed scores and forfeits", () => {
     const played: Match[] = [
       {

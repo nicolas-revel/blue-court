@@ -72,7 +72,9 @@ export type Qualification =
       readonly kind: "topPerPool";
       readonly count: number;
       readonly bestAtRank?: { readonly rank: number; readonly count: number };
-    };
+    }
+  /** The top `count` of the phase's overall ranking, for brackets or a cut after level pools. */
+  | { readonly kind: "topOverall"; readonly count: number };
 
 export interface Phase {
   readonly id: string;
