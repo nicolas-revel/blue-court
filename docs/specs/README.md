@@ -1,16 +1,18 @@
-# Spécifications v1
+# Specifications (v1)
 
-Ces fichiers sont la référence fonctionnelle du projet. Toute évolution passe par une PR, comme le code.
+These files are the functional source of truth for the project. Any change goes through a PR, like code.
 
-| Fichier | Sujet |
+| File | Topic |
 | --- | --- |
-| [objectif.md](objectif.md) | Objectif, utilisateurs, ce qu'on retient de l'outil actuel |
-| [inscriptions-equipes.md](inscriptions-equipes.md) | Inscriptions et constitution des équipes |
-| [phases.md](phases.md) | Enchaînement des phases et formats |
-| [regles-match.md](regles-match.md) | Règles de match et départage |
-| [planning.md](planning.md) | Planning et terrains |
-| [scores.md](scores.md) | Saisie des scores |
-| [vue-publique.md](vue-publique.md) | Vue publique mobile, affichage salle, impressions |
-| [hors-perimetre.md](hors-perimetre.md) | Hors périmètre v1 et questions ouvertes |
+| [overview.md](overview.md) | Goal, users, lessons from the club's current tool |
+| [registration-and-teams.md](registration-and-teams.md) | Registration and team building |
+| [phases.md](phases.md) | Phase sequencing and formats |
+| [match-rules.md](match-rules.md) | Match rules and tie-breakers |
+| [scheduling.md](scheduling.md) | Schedule and courts |
+| [scoring.md](scoring.md) | Score entry |
+| [public-view.md](public-view.md) | Mobile public view, venue display, printouts |
+| [out-of-scope.md](out-of-scope.md) | Out of scope for v1 and open questions |
 
-Principe directeur : **tout est paramétrable**. Aucune règle de club n'est codée en dur ; les règles FFVB servent de valeurs par défaut.
+Guiding principle: **everything is configurable**. No club rule is hard-coded; FFVB (French Volleyball Federation) rules are the defaults.
+
+The product's user interface is in French; these specs give the French term in parentheses where it helps.

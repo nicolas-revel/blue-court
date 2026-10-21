@@ -1,0 +1,8 @@
+or {
+  `Math.random()`,
+  `Date.now()`,
+  `new Date()`,
+  `performance.now()`
+} as $call where {
+  register_diagnostic(span=$call, message="The engine must stay deterministic: pass a seed or a date as a parameter instead of calling randomness or the clock.")
+}
