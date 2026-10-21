@@ -38,12 +38,18 @@ export type MatchRules =
 
 export interface RankingPoints {
   readonly win: number;
-  /** Win in the deciding set. */
+  /**
+   * Win in the deciding set, the last possible set of a "sets to win" match (3-2 when 3 sets
+   * are needed). Other formats have no deciding set and use `win` and `loss`.
+   */
   readonly tieBreakWin: number;
-  /** Loss in the deciding set. */
+  /** Loss in the deciding set, see `tieBreakWin`. */
   readonly tieBreakLoss: number;
   readonly loss: number;
   readonly draw: number;
+  /** For the team whose opponent forfeited. */
+  readonly forfeitWin: number;
+  /** For the team that forfeited. */
   readonly forfeitLoss: number;
 }
 

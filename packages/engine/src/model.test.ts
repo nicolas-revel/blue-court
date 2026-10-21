@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
-import type { Match, MatchRules, Phase, Tournament } from "./model.js";
+import type { Match, MatchRules, Phase, PhaseFormat, Tournament } from "./model.js";
 import type { Pairing } from "./round-robin.js";
 
 const teams = ["A", "B", "C", "D", "E", "F", "G", "H"].map((name, i) => ({
@@ -45,15 +45,21 @@ describe("tournament model", () => {
     expect(tournament.teams).toHaveLength(8);
   });
 
-  it("expresses every phase format of the specs", () => {
-    const formats: Phase["format"][] = [
-      { kind: "pools", poolCount: 4 },
-      { kind: "levelPools", poolSize: 4 },
-      { kind: "singleElimination", consolation: true },
-      { kind: "doubleElimination", grandFinalReset: false },
-      { kind: "fullPlacement" },
-    ];
-    expect(new Set(formats.map((f) => f.kind)).size).toBe(5);
+  it("has exactly the phase formats of the specs", () => {
+    expectTypeOf<PhaseFormat["kind"]>().toEqualTypeOf<
+      "pools" | "levelPools" | "singleElimination" | "doubleElimination" | "fullPlacement"
+    >();
+  });
+
+  it("expresses timed matches and capped sets", () => {
+    const timed: MatchRules = { kind: "timed", durationMinutes: 12, drawAllowed: true };
+    const capped: MatchRules = {
+      kind: "sets",
+      setsToWin: 2,
+      set: { pointsToWin: 25, winByTwo: true, cap: 27 },
+      tieBreakSet: { pointsToWin: 15, winByTwo: false },
+    };
+    expect([timed.kind, capped.kind]).toEqual(["timed", "sets"]);
   });
 
   it("expresses qualification per pool, overall, or for everyone", () => {
@@ -128,6 +134,7 @@ describe("FFVB defaults", () => {
       tieBreakLoss: 1,
       loss: 0,
       draw: 0,
+      forfeitWin: 3,
       forfeitLoss: 0,
     });
   });

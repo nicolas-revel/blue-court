@@ -15,6 +15,7 @@ export const FFVB_RANKING_POINTS: RankingPoints = Object.freeze({
   tieBreakLoss: 1,
   loss: 0,
   draw: 0,
+  forfeitWin: 3,
   forfeitLoss: 0,
 });
 
