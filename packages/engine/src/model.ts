@@ -16,21 +16,25 @@ export interface SetRules {
   readonly cap?: number;
 }
 
-export type MatchFormat =
+/** How a match ends. Only the variants where a draw can happen say whether it is allowed. */
+export type MatchRules =
   /** The first team to win `setsToWin` sets wins the match. */
-  | { readonly kind: "sets"; readonly setsToWin: number }
-  /** Every set is played; the match can end in a draw. */
-  | { readonly kind: "fixedSets"; readonly sets: number }
+  | {
+      readonly kind: "sets";
+      readonly setsToWin: number;
+      readonly set: SetRules;
+      /** Rules of the deciding set, when it differs from the other sets. */
+      readonly tieBreakSet?: SetRules;
+    }
+  /** Every set is played, so an even number of sets can end in a draw. */
+  | {
+      readonly kind: "fixedSets";
+      readonly sets: number;
+      readonly set: SetRules;
+      readonly drawAllowed: boolean;
+    }
   /** A single score after a fixed duration. */
-  | { readonly kind: "timed"; readonly durationMinutes: number };
-
-export interface MatchRules {
-  readonly format: MatchFormat;
-  readonly set: SetRules;
-  /** Rules of the deciding set, when it differs from the other sets. */
-  readonly tieBreakSet?: SetRules;
-  readonly drawAllowed: boolean;
-}
+  | { readonly kind: "timed"; readonly durationMinutes: number; readonly drawAllowed: boolean };
 
 export interface RankingPoints {
   readonly win: number;
@@ -43,7 +47,13 @@ export interface RankingPoints {
   readonly forfeitLoss: number;
 }
 
-export type TieBreaker = "wins" | "points" | "setRatio" | "pointRatio" | "headToHead" | "random";
+export type TieBreaker =
+  | "wins"
+  | "rankingPoints"
+  | "setRatio"
+  | "pointRatio"
+  | "headToHead"
+  | "random";
 
 export type PhaseFormat =
   | { readonly kind: "pools"; readonly poolCount: number }

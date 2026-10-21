@@ -1,7 +1,6 @@
 export { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
 export type {
   Match,
-  MatchFormat,
   MatchRules,
   MatchScore,
   Phase,

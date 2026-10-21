@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
-import type { Match, Phase, Tournament } from "./model.js";
+import type { Match, MatchRules, Phase, Tournament } from "./model.js";
 import type { Pairing } from "./round-robin.js";
 
 const teams = ["A", "B", "C", "D", "E", "F", "G", "H"].map((name, i) => ({
@@ -16,8 +16,8 @@ describe("tournament model", () => {
       name: "Morning pools",
       format: { kind: "pools", poolCount: 2 },
       matchRules: {
-        ...FFVB_MATCH_RULES,
-        format: { kind: "fixedSets", sets: 2 },
+        kind: "fixedSets",
+        sets: 2,
         set: { pointsToWin: 21, winByTwo: true },
         drawAllowed: true,
       },
@@ -91,6 +91,12 @@ describe("tournament model", () => {
     expect(played.filter((m) => m.score === undefined)).toHaveLength(1);
   });
 
+  it("only accepts draw and tie-break settings where they make sense", () => {
+    expectTypeOf<Extract<MatchRules, { kind: "sets" }>>().not.toHaveProperty("drawAllowed");
+    expectTypeOf<Extract<MatchRules, { kind: "fixedSets" }>>().not.toHaveProperty("tieBreakSet");
+    expectTypeOf<Extract<MatchRules, { kind: "timed" }>>().not.toHaveProperty("set");
+  });
+
   it("builds matches on the existing round-robin pairing", () => {
     expectTypeOf<Match>().toMatchTypeOf<Pairing<string>>();
   });
@@ -99,10 +105,10 @@ describe("tournament model", () => {
 describe("FFVB defaults", () => {
   it("plays best of five sets to 25, with a tie-break set to 15, both with a 2-point margin", () => {
     expect(FFVB_MATCH_RULES).toEqual({
-      format: { kind: "sets", setsToWin: 3 },
+      kind: "sets",
+      setsToWin: 3,
       set: { pointsToWin: 25, winByTwo: true },
       tieBreakSet: { pointsToWin: 15, winByTwo: true },
-      drawAllowed: false,
     });
   });
 
