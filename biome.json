@@ -47,7 +47,7 @@
   "overrides": [
     {
       "includes": ["packages/engine/src/**", "!**/*.test.ts"],
-      "plugins": ["./biome-plugins/moteur-deterministe.grit"],
+      "plugins": ["./biome-plugins/deterministic-engine.grit"],
       "linter": {
         "rules": {
           "correctness": {
@@ -64,7 +64,7 @@
                 "patterns": [
                   {
                     "group": ["*", "!./**", "!../**"],
-                    "message": "Le moteur n'a aucune dépendance runtime : n'importer que des modules relatifs du moteur."
+                    "message": "The engine has no runtime dependency: only import relative engine modules."
                   }
                 ]
               }

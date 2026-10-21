@@ -1,24 +1,24 @@
 ---
 name: grill
-description: Interroger l'humain sans relâche sur une idée, un plan ou une spec jusqu'à une compréhension partagée. À utiliser quand on demande de « griller », challenger ou creuser une idée, et avant toute nouvelle spec.
+description: Relentlessly question the human about an idea, plan or spec until there is shared understanding. Use when asked to grill, challenge or dig into an idea, and before writing any new spec.
 ---
 
 # Grill
 
-But : faire émerger toutes les décisions cachées d'une idée avant qu'elle devienne une spec ou du code. Mieux vaut dix questions maintenant qu'une règle de volley inventée plus tard.
+Goal: surface every hidden decision in an idea before it becomes a spec or code. Ten questions now beat one invented volleyball rule later.
 
-## Déroulé
+## Process
 
-1. **Reformuler** l'idée en deux ou trois phrases et la faire valider.
-2. **Chercher avant de demander** : si la réponse se trouve dans `docs/specs/`, le code, les issues ou le journal, la lire au lieu de poser la question. Ne demander que ce que seul l'humain sait.
-3. **Parcourir l'arbre de décision** branche par branche : pour chaque décision, résoudre d'abord celles dont elle dépend.
-4. **Une question à la fois**, toujours avec :
-   - le contexte en une phrase ;
-   - 2 à 4 options courtes ;
-   - l'option recommandée et pourquoi.
-5. **Pousser sur les cas limites** du domaine : nombre impair d'équipes, égalité parfaite, forfait, abandon en cours de match, terrain retiré, score corrigé après coup, retard qui décale tout le planning.
-6. **S'arrêter** quand il ne reste plus de décision qui change le comportement, ou quand l'humain dit stop.
+1. **Restate** the idea in two or three sentences and get it confirmed.
+2. **Look before asking**: if the answer is in `docs/specs/`, the code, the issues or the journal, read it instead of asking. Only ask what only the human knows.
+3. **Walk the decision tree** branch by branch: for each decision, resolve the ones it depends on first.
+4. **One question at a time**, always with:
+   - one sentence of context;
+   - 2 to 4 short options;
+   - the recommended option and why.
+5. **Push on domain edge cases**: odd number of teams, perfect ties, forfeit, retirement mid-match, court removed, score corrected afterwards, a delay that shifts the whole schedule.
+6. **Stop** when no decision that changes behavior is left, or when the human says stop.
 
-## Sortie
+## Output
 
-Un récapitulatif des décisions prises (une ligne chacune) et des questions restées ouvertes. Si la suite est une spec, enchaîner avec le skill `creer-spec`.
+A summary of the decisions made (one line each) and the questions still open. If a spec comes next, continue with the `write-spec` skill.

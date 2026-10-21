@@ -1,8 +1,0 @@
-or {
-  `Math.random()`,
-  `Date.now()`,
-  `new Date()`,
-  `performance.now()`
-} as $call where {
-  register_diagnostic(span=$call, message="Le moteur doit rester déterministe : passer une graine (seed) ou une date en paramètre au lieu d'appeler l'aléa ou l'horloge.")
-}

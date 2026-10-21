@@ -1,18 +1,18 @@
-# Phases du tournoi
+# Tournament phases
 
-Un tournoi est une **suite de phases**. Chaque phase a son format, ses règles de match (voir [regles-match.md](regles-match.md)) et une règle de qualification vers la suivante (par exemple les 2 premiers de chaque poule, ou les 4 meilleurs 3es).
+A tournament is a **sequence of phases**. Each phase has its format, its match rules (see [match-rules.md](match-rules.md)) and a qualification rule for the next one (for example the top 2 of each pool, or the 4 best third-placed teams).
 
-| Format de phase | Principe | Matchs par équipe |
+| Phase format | How it works | Matches per team |
 | --- | --- | --- |
-| Poules | Chacun rencontre tout le monde dans sa poule | Taille de poule moins 1 |
-| Poules de niveau | Nouvelles poules formées à partir du classement précédent | Taille de poule moins 1 |
-| Élimination directe | Le perdant sort, consolante optionnelle | Variable |
-| Double élimination | Winner et loser bracket, on sort après 2 défaites | 2 minimum |
-| Classement intégral | Gagnant d'un côté, perdant de l'autre ; chaque équipe finit avec une place unique | log2(N), soit 4 pour 16 équipes |
+| Pools (*poules*) | Everyone plays everyone in their pool | Pool size minus 1 |
+| Level pools (*poules de niveau*) | New pools built from the previous ranking | Pool size minus 1 |
+| Single elimination | The loser is out, optional consolation bracket | Varies |
+| Double elimination | Winners and losers brackets, out after 2 losses | 2 minimum |
+| Full placement bracket (*classement intégral*) | Winners go one way, losers the other; every team ends with a unique place | log2(N), i.e. 4 for 16 teams |
 
-Exemple type du club : poules le matin, puis poules de niveau ou classement intégral l'après-midi.
+Typical club format: pools in the morning, then level pools or a full placement bracket in the afternoon.
 
-## Règles transverses
+## Cross-cutting rules
 
-- Quand le nombre d'équipes n'est pas une puissance de 2, l'application propose des exempts.
-- L'organisateur peut corriger à la main toute poule ou tout tableau généré ; les phases suivantes se recalculent.
+- When the number of teams is not a power of 2, the app suggests byes.
+- The organizer can manually correct any generated pool or bracket; the following phases are recomputed.

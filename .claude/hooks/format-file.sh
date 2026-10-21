@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Formate et corrige avec Biome le fichier que Claude vient de modifier.
+# Formats and fixes, with Biome, the file Claude just edited.
 file=$(jq -r '.tool_input.file_path // empty')
 [ -z "$file" ] && exit 0
 case "$file" in

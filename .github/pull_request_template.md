@@ -1,21 +1,21 @@
 Closes #
 
-## Ce qui change
+## What changes
 
-Avant :
+Before:
 
-Après :
+After:
 
-## Réutilisé
+## Reused
 
-Ce qui existait déjà et a été réutilisé ou étendu (ou « rien de pertinent ») :
+What already existed and was reused or extended (or "nothing relevant"):
 
 ## Specs
 
-- [ ] `docs/specs/` à jour (ou rien à changer)
-- [ ] Entrée ajoutée au journal `docs/journal/`
+- [ ] `docs/specs/` up to date (or nothing to change)
+- [ ] Entry added to `docs/journal/`
 
-## Vérifications
+## Checks
 
-- [ ] `pnpm check` passe en local
-- [ ] Tests par propriété pour les nouvelles invariantes du moteur
+- [ ] `pnpm check` passes locally
+- [ ] Property-based tests for new engine invariants

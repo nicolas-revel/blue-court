@@ -1,4 +1,4 @@
-name: Revue Claude
+name: Claude review
 
 on:
   pull_request:
@@ -23,11 +23,11 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Relis cette PR en suivant le skill `.claude/skills/revue-pr/SKILL.md`
-            et les règles de `CLAUDE.md`. Vérifie aussi qu'elle respecte l'issue liée
-            et les fichiers de `docs/specs/` concernés.
+            Review this PR following the `.claude/skills/review-pr/SKILL.md` skill
+            and the rules in `CLAUDE.md`. Also check that it matches the linked issue
+            and the relevant files in `docs/specs/`.
 
-            Poste les problèmes précis en commentaires sur les lignes concernées,
-            puis un commentaire de synthèse en français avec le verdict.
+            Post specific problems as comments on the relevant lines,
+            then one summary comment with the verdict.
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"

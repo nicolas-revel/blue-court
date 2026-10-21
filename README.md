@@ -1,25 +1,29 @@
 # Blue Court
 
-Blue Court est un gestionnaire de tournois de volley où tout se règle : taille des équipes, inscriptions solo ou en équipe, enchaînement de phases (poules, poules de niveau, élimination directe, double élimination, classement intégral), règles de match par phase, planning des terrains, saisie des scores et vue mobile en direct pour les joueurs.
+Blue Court is a volleyball tournament manager where everything is configurable: team size, solo or team registration, sequences of phases (pools, level pools, single elimination, double elimination, full placement bracket), match rules per phase, court scheduling, score entry and a live mobile view for players.
 
-Projet en cours de construction. Les spécifications sont dans [docs/specs](docs/specs/README.md) et l'avancement dans le [journal de bord](docs/journal).
+Work in progress. The specs are in [docs/specs](docs/specs/README.md) and progress is tracked in the [build journal](docs/journal).
 
-## Méthode
+## Method
 
-Le projet est développé avec Claude Code, de façon visible :
+The project is built with Claude Code, in the open:
 
-- `CLAUDE.md` décrit les conventions et le domaine pour l'agent ;
-- chaque fonctionnalité part d'une issue reliée aux specs et passe par une PR revue ;
-- la CI (build, typecheck, tests) bloque toute régression ;
-- le journal de bord trace ce que l'IA a produit et ce qui a été repris à la main.
+- `CLAUDE.md` describes conventions and the domain for the agent;
+- skills in `.claude/skills/` drive the work, from grilling an idea to reviewing a PR;
+- conventions are enforced by lint rules rather than prose;
+- every feature starts from an issue linked to the specs and goes through a reviewed PR;
+- CI (lint, build, typecheck, tests) blocks any regression;
+- the build journal records what the AI produced and what was taken over by hand.
 
-## Démarrer
+Details in [docs/method.md](docs/method.md).
+
+## Getting started
 
 ```sh
 pnpm install
-pnpm test
+pnpm check
 ```
 
-## Licence
+## License
 
-[Functional Source License 1.1, ALv2 Future License](LICENSE.md) : le code est lisible, réutilisable et modifiable, sauf pour en faire un service concurrent. Chaque version passe sous licence Apache 2.0 deux ans après sa publication.
+[Functional Source License 1.1, ALv2 Future License](LICENSE.md): the code can be read, reused and modified, except to offer a competing service. Each version becomes Apache 2.0 two years after its release.
