@@ -12,6 +12,15 @@ export type {
   Team,
   TeamId,
   TieBreaker,
+  TimeLimit,
   Tournament,
 } from "./model.js";
 export { type Pairing, roundRobin } from "./round-robin.js";
+export {
+  type MatchOutcome,
+  type ScoreError,
+  type ScoreErrorCode,
+  type ScoreValidation,
+  type Side,
+  validateScore,
+} from "./score.js";
