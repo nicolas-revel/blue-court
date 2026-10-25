@@ -24,6 +24,18 @@ A score is accepted only if it can happen under the phase's rules; otherwise the
 - **Fixed sets, sets level, draw not allowed**: the team with more total points wins. If points are level too, the scoring table plays one more point.
 - A forfeit is always valid and won by the other team.
 
+## Pool standings
+
+The standings are recomputed from the pool's validated scores; a match without a score is ignored, and an invalid score is refused.
+
+- Each team's row shows matches played, wins, draws, losses, ranking points, sets won and lost, points won and lost.
+- Only finished sets count in the set totals: the unfinished last set of a match stopped by time adds its points but no set. A forfeit counts as described in "Forfeit in ratios"; a forfeited timed match adds no points.
+- A ratio is won over lost. A team that lost nothing is ahead of every team that lost something; a team with nothing won or lost has a ratio of 0.
+- Tie-breakers are applied in the phase's order, only to the teams still level.
+- **Head-to-head**: the ranking points earned in the matches between the level teams only (a mini-league when three or more are level). If that separates some of them, it is applied again within each smaller group still level, before moving to the next tie-breaker.
+- **Random draw**: reproducible from a seed stored with the tournament, so the standings never change between two views. The seed is required when the phase uses a random draw.
+- Teams still level after every tie-breaker share the same rank, and the next rank is skipped (1, 2, 2, 4).
+
 ## FFVB defaults
 
 | Setting | Default |

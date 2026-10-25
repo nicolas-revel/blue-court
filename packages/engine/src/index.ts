@@ -24,3 +24,4 @@ export {
   type Side,
   validateScore,
 } from "./score.js";
+export { computeStandings, type StandingRow, type StandingsInput } from "./standings.js";
