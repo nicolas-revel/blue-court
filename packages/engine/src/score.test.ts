@@ -70,6 +70,10 @@ describe("validateScore with sets to win", () => {
     expect(validateScore(capped, sets([27, 26]))).toEqual({ valid: true, outcome: "home" });
     expect(validateScore(capped, sets([26, 28]))).toMatchObject({ valid: false });
     expect(codes(capped, sets([28, 26]))).toEqual(["SET_CAP"]);
+    expect(codes(capped, sets([27, 27]))).toEqual(["SET_OVERSHOOT"]);
+    expect(
+      codes({ ...capped, timeLimit: { minutes: 20 } }, { ...sets([27, 27]), endedByTime: true }),
+    ).toEqual(["SET_OVERSHOOT"]);
   });
 
   it("only uses the tie-break set rules in the deciding set", () => {
@@ -110,6 +114,13 @@ describe("validateScore with a fixed number of sets", () => {
     });
     expect(codes(twoFixedSets, sets([25, 20]))).toEqual(["MATCH_INCOMPLETE"]);
     expect(codes(twoFixedSets, sets([25, 20], [25, 20], [25, 20]))).toEqual(["TOO_MANY_SETS"]);
+  });
+
+  it("does not use total points when time stops a match with level sets", () => {
+    const timed = { ...twoFixedSets, timeLimit: { minutes: 20 } };
+    const score = { ...sets([25, 20], [23, 25]), endedByTime: true };
+    expect(validateScore(timed, score)).toEqual({ valid: true, outcome: "draw" });
+    expect(codes({ ...timed, drawAllowed: false }, score)).toEqual(["DRAW_NOT_ALLOWED"]);
   });
 
   it("breaks a 1-1 on total points when draws are not allowed", () => {

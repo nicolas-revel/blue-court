@@ -70,7 +70,7 @@ function setState(rules: SetRules, score: SetScore, set: number): SetState {
   }
   if (high < pointsToWin) return { state: "unfinished", leader };
   if (leader === undefined && !winByTwo) return overshoot;
-  if (leader === undefined) return { state: "unfinished", leader };
+  if (leader === undefined) return high === cap ? overshoot : { state: "unfinished", leader };
   if (!winByTwo) return high === pointsToWin ? { state: "won", winner: leader } : overshoot;
   if (high === pointsToWin) {
     return gap >= 2 || cap === high
