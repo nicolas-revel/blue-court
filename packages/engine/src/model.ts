@@ -16,6 +16,11 @@ export interface SetRules {
   readonly cap?: number;
 }
 
+/** Optional cap on a match played in sets, to keep the schedule on time. */
+export interface TimeLimit {
+  readonly minutes: number;
+}
+
 /** How a match ends. Only the variants where a draw can happen say whether it is allowed. */
 export type MatchRules =
   /** The first team to win `setsToWin` sets wins the match. */
@@ -25,6 +30,7 @@ export type MatchRules =
       readonly set: SetRules;
       /** Rules of the deciding set (see `RankingPoints.tieBreakWin`), when they differ. */
       readonly tieBreakSet?: SetRules;
+      readonly timeLimit?: TimeLimit;
     }
   /** Every set is played, so an even number of sets can end in a draw. */
   | {
@@ -32,6 +38,7 @@ export type MatchRules =
       readonly sets: number;
       readonly set: SetRules;
       readonly drawAllowed: boolean;
+      readonly timeLimit?: TimeLimit;
     }
   /** A single score after a fixed duration. */
   | { readonly kind: "timed"; readonly durationMinutes: number; readonly drawAllowed: boolean };
@@ -110,7 +117,12 @@ export interface SetScore {
 }
 
 export type MatchScore =
-  | { readonly kind: "sets"; readonly sets: readonly SetScore[] }
+  | {
+      readonly kind: "sets";
+      readonly sets: readonly SetScore[];
+      /** The time limit stopped the match: the last set may be unfinished. */
+      readonly endedByTime?: boolean;
+    }
   | { readonly kind: "timed"; readonly home: number; readonly away: number }
   | { readonly kind: "forfeit"; readonly forfeitedBy: "home" | "away" };
 
