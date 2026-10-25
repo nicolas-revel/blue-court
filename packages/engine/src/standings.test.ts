@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
 import type { Match, MatchScore, Phase } from "./model.js";
 import { roundRobin } from "./round-robin.js";
-import { computeStandings, type StandingsInput } from "./standings.js";
+import { computeStandings, type StandingsError, type StandingsInput } from "./standings.js";
 
 const ffvb: StandingsInput["phase"] = {
   matchRules: FFVB_MATCH_RULES,
@@ -313,6 +313,9 @@ describe("computeStandings", () => {
       "DUPLICATE_TEAM",
     );
     expect(() => computeStandings({ ...base, matches: [match("A", "A")] })).toThrow("SAME_TEAM");
+    expect(() => computeStandings({ ...base, matches: [match("A", "A")] })).toThrow(
+      expect.objectContaining({ code: "SAME_TEAM" }) as StandingsError,
+    );
   });
 });
 

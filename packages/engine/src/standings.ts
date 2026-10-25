@@ -1,6 +1,23 @@
 import type { Match, Phase, SetScore, TeamId, TieBreaker } from "./model.js";
 import { isDecidingSet, type Side, setWinner, validateScore } from "./score.js";
 
+export type StandingsErrorCode =
+  | "INVALID_SCORE"
+  | "UNKNOWN_TEAM"
+  | "SAME_TEAM"
+  | "DUPLICATE_TEAM"
+  | "SEED_REQUIRED";
+
+/** Thrown when the standings cannot be computed; `code` is stable, the message is English. */
+export class StandingsError extends Error {
+  readonly code: StandingsErrorCode;
+  constructor(code: StandingsErrorCode, message: string) {
+    super(`${code}: ${message}`);
+    this.name = "StandingsError";
+    this.code = code;
+  }
+}
+
 export interface StandingRow {
   readonly team: TeamId;
   /** 1-based; teams still level after every tie-breaker share a rank. */
@@ -48,7 +65,7 @@ function matchLines(match: Match, rules: Rules): readonly [MatchLine, MatchLine]
   const validation = validateScore(rules.matchRules, score);
   if (!validation.valid) {
     const codes = validation.errors.map((e) => e.code).join(", ");
-    throw new Error(`INVALID_SCORE: match ${match.id} has an invalid score (${codes})`);
+    throw new StandingsError("INVALID_SCORE", `match ${match.id} has an invalid score (${codes})`);
   }
   const { outcome } = validation;
   const points = rules.rankingPoints;
@@ -166,20 +183,23 @@ function drawKey(seed: number, team: TeamId): number {
 export function computeStandings(input: StandingsInput): StandingRow[] {
   const { teams, matches, phase, seed } = input;
   if (new Set(teams).size !== teams.length)
-    throw new Error("DUPLICATE_TEAM: each team must appear once");
+    throw new StandingsError("DUPLICATE_TEAM", "each team must appear once");
   const known = new Set(teams);
   const lines: MatchLine[] = [];
   for (const match of matches) {
     if (!known.has(match.home) || !known.has(match.away)) {
-      throw new Error(`UNKNOWN_TEAM: match ${match.id} involves a team outside the pool`);
+      throw new StandingsError(
+        "UNKNOWN_TEAM",
+        `match ${match.id} involves a team outside the pool`,
+      );
     }
     if (match.home === match.away) {
-      throw new Error(`SAME_TEAM: match ${match.id} has the same team on both sides`);
+      throw new StandingsError("SAME_TEAM", `match ${match.id} has the same team on both sides`);
     }
     if (match.score !== undefined) lines.push(...matchLines(match, phase));
   }
   if (phase.tieBreakers.includes("random") && seed === undefined) {
-    throw new Error("SEED_REQUIRED: a random draw tie-breaker needs a seed");
+    throw new StandingsError("SEED_REQUIRED", "a random draw tie-breaker needs a seed");
   }
 
   const byTeam = new Map<TeamId, MatchLine[]>(teams.map((team) => [team, []]));
