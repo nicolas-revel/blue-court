@@ -138,6 +138,35 @@ describe("computeStandings", () => {
     expect(order(rows)).toEqual(["A", "C", "B", "D", "E"]);
   });
 
+  it("applies head-to-head again within a group the mini-league leaves level", () => {
+    // A, B, C and D have 9 points. Their mini-league gives A 9, B 4, C 4, D 1, so B and C
+    // stay level; their own match (B won 3-2) then puts B ahead.
+    const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead"] as const };
+    const win = sets([25, 0], [25, 0], [25, 0]);
+    const win32 = sets([25, 0], [25, 0], [0, 25], [0, 25], [15, 0]);
+    const rows = computeStandings({
+      teams: ["G", "F", "E", "D", "C", "B", "A"],
+      matches: [
+        match("A", "B", win),
+        match("A", "C", win),
+        match("A", "D", win),
+        match("B", "C", win32),
+        match("B", "D", win32),
+        match("C", "D", win),
+        match("B", "E", win),
+        match("B", "F", win32),
+        match("C", "E", win),
+        match("C", "G", win32),
+        match("D", "E", win),
+        match("D", "F", win),
+        match("D", "G", win32),
+      ],
+      phase,
+    });
+    expect(rows.slice(0, 4).map((r) => r.rankingPoints)).toEqual([9, 9, 9, 9]);
+    expect(order(rows)).toEqual(["A", "B", "C", "D", "G", "F", "E"]);
+  });
+
   it("moves to the next tie-breaker when head-to-head is a cycle", () => {
     // A beat B, B beat C, C beat A: head-to-head leaves all three level.
     const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead", "setRatio"] as const };
@@ -273,6 +302,37 @@ describe("computeStandings properties", () => {
         // With wins as the first tie-breaker, wins never go up down the table.
         for (let i = 1; i < rows.length; i++) {
           expect((rows[i - 1]?.wins ?? 0) >= (rows[i]?.wins ?? 0)).toBe(true);
+        }
+      }),
+    );
+  });
+
+  it("orders two teams level on ranking points by their direct match", () => {
+    const h2hPhase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead"] as const };
+    fc.assert(
+      fc.property(poolArb, ({ teams, matches }) => {
+        const rows = computeStandings({ teams, matches, phase: h2hPhase });
+        for (const points of new Set(rows.map((r) => r.rankingPoints))) {
+          const level = rows.filter((r) => r.rankingPoints === points);
+          if (level.length !== 2) continue;
+          const [first, second] = level.map((r) => r.team);
+          const direct = matches.find(
+            (m) =>
+              [m.home, m.away].includes(first ?? "") && [m.home, m.away].includes(second ?? ""),
+          );
+          const score = direct?.score;
+          if (direct === undefined || score === undefined) continue;
+          const winner =
+            score.kind === "forfeit"
+              ? score.forfeitedBy === "home"
+                ? direct.away
+                : direct.home
+              : score.kind === "sets" &&
+                  score.sets.filter((x) => x.home > x.away).length >
+                    score.sets.filter((x) => x.away > x.home).length
+                ? direct.home
+                : direct.away;
+          expect(first).toBe(winner);
         }
       }),
     );
