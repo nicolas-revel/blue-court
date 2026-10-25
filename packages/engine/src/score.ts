@@ -118,6 +118,7 @@ function validateSets(
       ? rules.tieBreakSet
       : rules.set;
 
+  if (score.sets.length === 0) return fail(error("MATCH_INCOMPLETE", "the match is not over"));
   const errors: ScoreError[] = [];
   if (endedByTime && rules.timeLimit === undefined) {
     errors.push(error("NO_TIME_LIMIT", "this match has no time limit"));

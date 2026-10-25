@@ -98,6 +98,11 @@ describe("validateScore with sets to win", () => {
 });
 
 describe("validateScore with a fixed number of sets", () => {
+  it("refuses a score with no set, even when stopped by time", () => {
+    expect(codes(twoFixedSets, sets())).toEqual(["MATCH_INCOMPLETE"]);
+    expect(codes(twoFixedSets, { ...sets(), endedByTime: true })).toEqual(["MATCH_INCOMPLETE"]);
+  });
+
   it("allows a 1-1 draw when the phase allows it", () => {
     expect(validateScore(twoFixedSets, sets([25, 20], [18, 25]))).toEqual({
       valid: true,
