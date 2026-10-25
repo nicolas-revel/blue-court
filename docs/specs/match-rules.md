@@ -5,7 +5,7 @@ Each phase has its own rules, prefilled with FFVB rules.
 | Setting | Options |
 | --- | --- |
 | End of match | Sets to win (1, 2 or 3), fixed number of sets, or time limit |
-| Maximum duration of a match in sets | Optional, distinct from the "time limit" end of match above (for example 2 sets to win, 20 minutes max) |
+| Maximum duration of a match in sets | Optional, for "sets to win" and "fixed sets" matches only (for example 2 sets to win, 20 minutes max). Unlike a timed match, the score stays set by set; the scoring table marks the match as stopped by time |
 | Points per set | Any (15, 21, 25...), 2-point margin or not, optional cap |
 | Tie-break set | Yes or no, number of points (rules of the deciding set, so only for "sets to win" matches with at least 2 sets to win) |
 | Draw | Allowed or not, for fixed sets and timed matches (a "sets to win" match cannot end in a draw) |
