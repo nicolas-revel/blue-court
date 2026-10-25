@@ -94,9 +94,8 @@ describe("computeStandings", () => {
     expect(loser).toMatchObject({ team: "B", rankingPoints: 0, setsLost: 3, pointsLost: 75 });
   });
 
-  it("breaks a three-way tie with head-to-head, applied again within the remaining tie", () => {
-    // A, B, C and D all have 6 points. Among A, B and C, A beat both; B and C then split by
-    // their own match.
+  it("breaks a head-to-head tie between two teams", () => {
+    // Points: A 6, B 3, C 3, D 6. A and D are level; D beat A.
     const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead"] as const };
     const win = sets([25, 0], [25, 0], [25, 0]);
     const rows = computeStandings({
@@ -111,8 +110,48 @@ describe("computeStandings", () => {
       ],
       phase,
     });
-    // Points: A 6, B 3, C 3, D 6. D and A are level; D beat A.
     expect(order(rows)).toEqual(["D", "A", "C", "B"]);
+  });
+
+  it("splits a three-way tie with a head-to-head mini-league, then the next tie-breaker", () => {
+    // A, B and C have 6 points. Among them, A beat B and C, and B-C is not played yet, so
+    // head-to-head puts A first and leaves B and C level: the set ratio separates them.
+    const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead", "setRatio"] as const };
+    const win = sets([25, 0], [25, 0], [25, 0]);
+    const winDroppingASet = sets([25, 0], [0, 25], [25, 0], [25, 0]);
+    const rows = computeStandings({
+      teams: ["E", "D", "C", "B", "A"],
+      matches: [
+        match("A", "B", win),
+        match("A", "C", win),
+        match("B", "D", winDroppingASet),
+        match("B", "E", win),
+        match("C", "D", win),
+        match("C", "E", win),
+        match("D", "A", win),
+        match("E", "A", win),
+        match("D", "E"),
+      ],
+      phase,
+    });
+    // Sets: C 6:3, B 6:4; D 4:6, E 3:6.
+    expect(order(rows)).toEqual(["A", "C", "B", "D", "E"]);
+  });
+
+  it("moves to the next tie-breaker when head-to-head is a cycle", () => {
+    // A beat B, B beat C, C beat A: head-to-head leaves all three level.
+    const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead", "setRatio"] as const };
+    const rows = computeStandings({
+      teams: ["A", "B", "C"],
+      matches: [
+        match("A", "B", sets([25, 0], [0, 25], [25, 0], [25, 0])),
+        match("B", "C", sets([25, 0], [25, 0], [25, 0])),
+        match("C", "A", sets([25, 0], [25, 0], [25, 0])),
+      ],
+      phase,
+    });
+    // Sets: B 4:3, C 3:3, A 3:4.
+    expect(order(rows)).toEqual(["B", "C", "A"]);
   });
 
   it("shares a rank when every tie-breaker is level, and ignores unplayed matches", () => {
@@ -176,6 +215,18 @@ const poolArb = fc.integer({ min: 2, max: 8 }).chain((n) => {
   });
 });
 
+const timedPoolArb = fc.integer({ min: 2, max: 8 }).chain((n) => {
+  const teams = Array.from({ length: n }, (_, i) => `T${i}`);
+  const pairings = roundRobin(teams).flat();
+  const scoreArb = fc
+    .tuple(fc.integer({ min: 0, max: 20 }), fc.integer({ min: 0, max: 20 }))
+    .map(([home, away]) => timed(home, away));
+  return fc.tuple(...pairings.map(() => scoreArb)).map((scores) => ({
+    teams,
+    matches: pairings.map((p, i) => match(p.home, p.away, scores[i])),
+  }));
+});
+
 describe("computeStandings properties", () => {
   const phase = { ...ffvb, tieBreakers: [...FFVB_TIE_BREAKERS, "headToHead", "random"] as const };
 
@@ -201,6 +252,28 @@ describe("computeStandings properties", () => {
         expect(total((r) => r.wins)).toBe(total((r) => r.losses));
         expect(total((r) => r.setsWon)).toBe(total((r) => r.setsLost));
         expect(rows.every((r) => r.played === teams.length - 1)).toBe(true);
+      }),
+    );
+  });
+
+  it("balances results in timed pools with draws", () => {
+    const timedPhase = {
+      matchRules: { kind: "timed", durationMinutes: 8, drawAllowed: true },
+      rankingPoints: { ...FFVB_RANKING_POINTS, win: 2, draw: 1, loss: 0 },
+      tieBreakers: ["wins", "pointRatio"],
+    } as const satisfies StandingsInput["phase"];
+    fc.assert(
+      fc.property(timedPoolArb, ({ teams, matches }) => {
+        const rows = computeStandings({ teams, matches, phase: timedPhase });
+        const total = (f: (r: (typeof rows)[number]) => number) =>
+          rows.reduce((s, r) => s + f(r), 0);
+        expect(total((r) => r.wins)).toBe(total((r) => r.losses));
+        expect(total((r) => r.draws) % 2).toBe(0);
+        expect(total((r) => r.pointsWon)).toBe(total((r) => r.pointsLost));
+        // With wins as the first tie-breaker, wins never go up down the table.
+        for (let i = 1; i < rows.length; i++) {
+          expect((rows[i - 1]?.wins ?? 0) >= (rows[i]?.wins ?? 0)).toBe(true);
+        }
       }),
     );
   });
