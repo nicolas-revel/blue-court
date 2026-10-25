@@ -172,34 +172,60 @@ const wonSet = (rules: SetRules, winner: Side): fc.Arbitrary<SetScore> => {
     .map(([w, l]) => (winner === "home" ? { home: w, away: l } : { home: l, away: w }));
 };
 
-describe("validateScore properties", () => {
-  it("gives every generated finished match exactly the team that won the most sets", () => {
-    const arb = fc
-      .record({
-        setsToWin: fc.integer({ min: 1, max: 3 }),
-        set: setRulesArb,
-        winner: fc.constantFrom<Side>("home", "away"),
-        lostSets: fc.nat(),
-        order: fc.array(fc.boolean(), { maxLength: 10 }),
-      })
-      .chain(({ setsToWin, set, winner, lostSets, order }) => {
-        const loser: Side = winner === "home" ? "away" : "home";
-        const losses = lostSets % setsToWin;
-        // The winner always takes the last set; the others are shuffled.
-        const others = [...Array(setsToWin - 1).fill(winner), ...Array(losses).fill(loser)];
-        const sorted = others
-          .map((side, i) => ({ side, key: order[i] ?? false }))
-          .sort((a, b) => Number(a.key) - Number(b.key))
-          .map((x) => x.side as Side);
-        const winners = [...sorted, winner];
-        const rules: MatchRules = { kind: "sets", setsToWin, set };
-        return fc
-          .tuple(...winners.map((w) => wonSet(set, w)))
-          .map((scores) => ({ rules, winner, scores }));
-      });
+const other = (side: Side): Side => (side === "home" ? "away" : "home");
 
+/** Who wins each set of a finished match: the winner takes the last set, the rest is shuffled. */
+const setWinnersArb = (setsToWin: number, winner: Side): fc.Arbitrary<Side[]> =>
+  fc
+    .integer({ min: 0, max: setsToWin - 1 })
+    .chain((losses) =>
+      fc.shuffledSubarray(
+        [...Array(setsToWin - 1).fill(winner), ...Array(losses).fill(other(winner))] as Side[],
+        { minLength: setsToWin - 1 + losses },
+      ),
+    )
+    .map((sides) => [...sides, winner]);
+
+/** A finished "sets to win" match, with an optional tie-break set and time limit. */
+const finishedMatchArb = fc
+  .record({
+    setsToWin: fc.integer({ min: 1, max: 3 }),
+    set: setRulesArb,
+    tieBreakSet: fc.option(setRulesArb, { nil: undefined }),
+    timeLimit: fc.boolean(),
+    winner: fc.constantFrom<Side>("home", "away"),
+  })
+  .chain(({ setsToWin, set, tieBreakSet, timeLimit, winner }) => {
+    const rules: Extract<MatchRules, { kind: "sets" }> = {
+      kind: "sets",
+      setsToWin,
+      set,
+      ...(tieBreakSet ? { tieBreakSet } : {}),
+      ...(timeLimit ? { timeLimit: { minutes: 20 } } : {}),
+    };
+    const rulesFor = (index: number) =>
+      setsToWin >= 2 && index === 2 * setsToWin - 2 && tieBreakSet ? tieBreakSet : set;
+    return setWinnersArb(setsToWin, winner).chain((winners) =>
+      fc
+        .tuple(...winners.map((w, i) => wonSet(rulesFor(i), w)))
+        .map((scores) => ({ rules, winner, scores, rulesFor })),
+    );
+  });
+
+/** A set still being played: nobody has reached the points to win. */
+const unfinishedSet = (rules: SetRules): fc.Arbitrary<SetScore> =>
+  fc.record({
+    home: fc.integer({ min: 0, max: rules.pointsToWin - 1 }),
+    away: fc.integer({ min: 0, max: rules.pointsToWin - 1 }),
+  });
+
+const sum = (scores: readonly SetScore[], side: Side) =>
+  scores.reduce((total, score) => total + score[side], 0);
+
+describe("validateScore properties", () => {
+  it("gives every finished match to the team that won the most sets, tie-break set included", () => {
     fc.assert(
-      fc.property(arb, ({ rules, winner, scores }) => {
+      fc.property(finishedMatchArb, ({ rules, winner, scores }) => {
         expect(validateScore(rules, { kind: "sets", sets: scores })).toEqual({
           valid: true,
           outcome: winner,
@@ -208,14 +234,88 @@ describe("validateScore properties", () => {
     );
   });
 
-  it("never finds a winner in a fixed-sets match whose sets and points are level", () => {
+  it("rejects any set played after the match is won", () => {
     fc.assert(
-      fc.property(setRulesArb, fc.integer({ min: 1, max: 3 }), (set, half) => {
-        const won = Array.from({ length: half }, () => ({ home: set.pointsToWin, away: 0 }));
-        const lost = won.map(({ home, away }) => ({ home: away, away: home }));
+      fc.property(finishedMatchArb, ({ rules, scores }) => {
+        const extra = { home: rules.set.pointsToWin, away: 0 };
+        expect(codes(rules, { kind: "sets", sets: [...scores, extra] })).toEqual([
+          "SETS_AFTER_END",
+        ]);
+      }),
+    );
+  });
+
+  it("rejects a set pushed past the score where it ended", () => {
+    fc.assert(
+      fc.property(finishedMatchArb, ({ rules, scores, rulesFor }) => {
+        const first = scores[0] as SetScore;
+        const { pointsToWin } = rulesFor(0);
+        const winner: Side = first.home > first.away ? "home" : "away";
+        const bumped = { ...first, [winner]: pointsToWin + 1, [other(winner)]: 0 } as SetScore;
+        const errors = codes(rules, { kind: "sets", sets: [bumped, ...scores.slice(1)] });
+        expect(["SET_OVERSHOOT", "SET_CAP"]).toContain(errors[0]);
+      }),
+    );
+  });
+
+  it("decides a match stopped by time on sets won, then on the unfinished set", () => {
+    const arb = fc
+      .record({
+        setsToWin: fc.integer({ min: 2, max: 3 }),
+        set: setRulesArb,
+        homeSets: fc.nat(),
+        awaySets: fc.nat(),
+      })
+      .chain(({ setsToWin, set, homeSets, awaySets }) => {
+        const home = homeSets % setsToWin;
+        const away = awaySets % setsToWin;
+        const winners: Side[] = [...Array(home).fill("home"), ...Array(away).fill("away")];
+        const rules: MatchRules = { kind: "sets", setsToWin, set, timeLimit: { minutes: 20 } };
+        return fc
+          .tuple(fc.tuple(...winners.map((w) => wonSet(set, w))), unfinishedSet(set))
+          .map(([done, current]) => ({ rules, home, away, done, current }));
+      });
+
+    fc.assert(
+      fc.property(arb, ({ rules, home, away, done, current }) => {
+        const result = validateScore(rules, {
+          kind: "sets",
+          sets: [...done, current],
+          endedByTime: true,
+        });
+        const expected =
+          home !== away
+            ? home > away
+              ? "home"
+              : "away"
+            : current.home !== current.away
+              ? current.home > current.away
+                ? "home"
+                : "away"
+              : "invalid";
+        expect(result.valid ? result.outcome : "invalid").toBe(expected);
+      }),
+    );
+  });
+
+  it("decides level fixed sets on total points when draws are not allowed", () => {
+    const arb = fc
+      .record({ set: setRulesArb, half: fc.integer({ min: 1, max: 3 }) })
+      .chain(({ set, half }) => {
+        const winners: Side[] = [...Array(half).fill("home"), ...Array(half).fill("away")];
+        return fc
+          .tuple(...winners.map((w) => wonSet(set, w)))
+          .map((scores) => ({ set, half, scores }));
+      });
+
+    fc.assert(
+      fc.property(arb, ({ set, half, scores }) => {
         const rules: MatchRules = { kind: "fixedSets", sets: 2 * half, set, drawAllowed: false };
-        const result = validateScore(rules, { kind: "sets", sets: [...won, ...lost] });
-        expect(result.valid ? result.outcome : "invalid").toBe("invalid");
+        const result = validateScore(rules, { kind: "sets", sets: scores });
+        const home = sum(scores, "home");
+        const away = sum(scores, "away");
+        const expected = home === away ? "invalid" : home > away ? "home" : "away";
+        expect(result.valid ? result.outcome : "invalid").toBe(expected);
       }),
     );
   });

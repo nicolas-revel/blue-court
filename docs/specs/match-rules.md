@@ -20,7 +20,7 @@ A score is accepted only if it can happen under the phase's rules; otherwise the
 
 - A set ends as soon as a team reaches the points to win with a 2-point margin (if required), or reaches the cap. Any score past that point is impossible.
 - No set can be played once a team has won the match, and a match in sets is only complete when a team has won it (sets to win) or every set is played (fixed sets).
-- **Time limit reached**: the last set may be unfinished. The team with more sets won takes the match; if sets are level, the team leading the unfinished set wins. If that is level too, the match is a draw when the phase allows it (fixed sets); otherwise the scoring table plays one more point and enters it.
+- **Time limit reached**: the last set may be unfinished. The team with more sets won takes the match; if sets are level, the team leading the unfinished set wins. If that is level too, the match is a draw when the phase allows it (fixed sets); otherwise the scoring table plays one more point and enters it. Total points never decide a match stopped by time.
 - **Fixed sets, sets level, draw not allowed**: the team with more total points wins. If points are level too, the scoring table plays one more point.
 - A forfeit is always valid and won by the other team.
 
