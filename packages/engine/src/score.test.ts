@@ -173,6 +173,22 @@ describe("validateScore with timed matches and forfeits", () => {
     ).toEqual({ valid: true, outcome: "draw" });
   });
 
+  it("rejects negative or fractional points", () => {
+    expect(codes(timed, { kind: "timed", home: -1, away: 3 })).toEqual(["INVALID_POINTS"]);
+    expect(codes(timed, { kind: "timed", home: 1.5, away: 3 })).toEqual(["INVALID_POINTS"]);
+  });
+
+  it("gives any timed score to the higher total, or a draw only when allowed", () => {
+    fc.assert(
+      fc.property(fc.nat(60), fc.nat(60), fc.boolean(), (home, away, drawAllowed) => {
+        const result = validateScore({ ...timed, drawAllowed }, { kind: "timed", home, away });
+        const expected =
+          home > away ? "home" : away > home ? "away" : drawAllowed ? "draw" : "invalid";
+        expect(result.valid ? result.outcome : "invalid").toBe(expected);
+      }),
+    );
+  });
+
   it("rejects a score of the wrong kind", () => {
     expect(codes(timed, sets([25, 20]))).toEqual(["SCORE_KIND"]);
     expect(codes(FFVB_MATCH_RULES, { kind: "timed", home: 1, away: 0 })).toEqual(["SCORE_KIND"]);
