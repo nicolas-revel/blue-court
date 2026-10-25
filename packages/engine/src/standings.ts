@@ -239,10 +239,12 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
     return buckets.flatMap((bucket) => rankGroup(bucket, again ? index : index + 1));
   };
 
+  // Teams sharing a rank are listed by id, so the rows never depend on the input order.
+  const byId = (a: TeamId, b: TeamId) => (a < b ? -1 : a > b ? 1 : 0);
   const rows: StandingRow[] = [];
   for (const group of rankGroup(teams, 0)) {
     const rank = rows.length + 1;
-    for (const team of group) rows.push({ team, rank, ...get(team) });
+    for (const team of [...group].sort(byId)) rows.push({ team, rank, ...get(team) });
   }
   return rows;
 }

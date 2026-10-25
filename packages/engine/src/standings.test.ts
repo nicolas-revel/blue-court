@@ -454,4 +454,18 @@ describe("computeStandings properties", () => {
       }),
     );
   });
+
+  it("does not depend on input order even without a random draw", () => {
+    fc.assert(
+      fc.property(poolArb, ({ teams, matches }) => {
+        const rows = computeStandings({ teams, matches, phase: ffvb });
+        const shuffled = computeStandings({
+          teams: [...teams].reverse(),
+          matches: [...matches].reverse(),
+          phase: ffvb,
+        });
+        expect(shuffled).toEqual(rows);
+      }),
+    );
+  });
 });
