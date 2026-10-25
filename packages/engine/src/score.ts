@@ -82,12 +82,14 @@ function setState(rules: SetRules, score: SetScore, set: number): SetState {
   return high === cap ? { state: "won", winner: leader } : { state: "unfinished", leader };
 }
 
+/** Whether a set (0-based index) is the deciding set: the last one of a match to 2+ sets. */
+export function isDecidingSet(rules: MatchRules, index: number): boolean {
+  return rules.kind === "sets" && rules.setsToWin >= 2 && index === 2 * rules.setsToWin - 2;
+}
+
 /** Rules of a set by its 0-based index: the tie-break set applies to the deciding set only. */
 function setRulesAt(rules: Exclude<MatchRules, { kind: "timed" }>, index: number): SetRules {
-  return rules.kind === "sets" &&
-    rules.setsToWin >= 2 &&
-    index === 2 * rules.setsToWin - 2 &&
-    rules.tieBreakSet
+  return rules.kind === "sets" && isDecidingSet(rules, index) && rules.tieBreakSet
     ? rules.tieBreakSet
     : rules.set;
 }

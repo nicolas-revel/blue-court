@@ -1,5 +1,5 @@
 import type { Match, Phase, SetScore, TeamId, TieBreaker } from "./model.js";
-import { type Side, setWinner, validateScore } from "./score.js";
+import { isDecidingSet, type Side, setWinner, validateScore } from "./score.js";
 
 export interface StandingRow {
   readonly team: TeamId;
@@ -68,9 +68,7 @@ function matchLines(match: Match, rules: Rules): readonly [MatchLine, MatchLine]
     const last = score.sets.length - 1;
     const lastSet = score.sets[last];
     decidingSet =
-      matchRules.kind === "sets" &&
-      matchRules.setsToWin >= 2 &&
-      last === 2 * matchRules.setsToWin - 2 &&
+      isDecidingSet(matchRules, last) &&
       lastSet !== undefined &&
       setWinner(matchRules, last, lastSet) !== undefined;
   } else if (score.kind === "timed") {
