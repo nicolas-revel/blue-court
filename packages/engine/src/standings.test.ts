@@ -301,7 +301,7 @@ describe("computeStandings", () => {
     );
   });
 
-  it("refuses invalid scores, unknown teams and duplicates", () => {
+  it("refuses invalid scores, unknown teams, same-team matches and duplicates", () => {
     const base = { teams: ["A", "B"], phase: ffvb };
     expect(() => computeStandings({ ...base, matches: [match("A", "B", sets([25, 24]))] })).toThrow(
       "INVALID_SCORE",
@@ -312,6 +312,7 @@ describe("computeStandings", () => {
     expect(() => computeStandings({ ...base, teams: ["A", "A"], matches: [] })).toThrow(
       "DUPLICATE_TEAM",
     );
+    expect(() => computeStandings({ ...base, matches: [match("A", "A")] })).toThrow("SAME_TEAM");
   });
 });
 

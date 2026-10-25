@@ -173,6 +173,9 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
     if (!known.has(match.home) || !known.has(match.away)) {
       throw new Error(`UNKNOWN_TEAM: match ${match.id} involves a team outside the pool`);
     }
+    if (match.home === match.away) {
+      throw new Error(`SAME_TEAM: match ${match.id} has the same team on both sides`);
+    }
     if (match.score !== undefined) lines.push(...matchLines(match, phase));
   }
   if (phase.tieBreakers.includes("random") && seed === undefined) {

@@ -36,6 +36,7 @@ The standings are recomputed from the pool's validated scores; a match without a
 - **Head-to-head**: the ranking points earned in the matches between the level teams only (a mini-league when three or more are level). If that separates some of them, it is applied again within each smaller group still level, before moving to the next tie-breaker.
 - **Random draw**: reproducible from a seed stored with the tournament, so the standings never change between two views. The seed is required when the phase uses a random draw.
 - Teams still level after every tie-breaker share the same rank, and the next rank is skipped (1, 2, 2, 4).
+- The standings are refused, with a stable code, when a score is invalid (`INVALID_SCORE`), a match involves a team outside the pool (`UNKNOWN_TEAM`) or the same team on both sides (`SAME_TEAM`), a team is listed twice (`DUPLICATE_TEAM`), or a random draw has no seed (`SEED_REQUIRED`).
 
 ## FFVB defaults
 
