@@ -61,6 +61,20 @@ describe("validateScore with sets to win", () => {
     );
   });
 
+  it("reports only the invalid set when later sets are fine", () => {
+    const result = validateScore(FFVB_MATCH_RULES, sets([25, 23], [25, 23], [27, 20], [25, 10]));
+    expect(result).toEqual({
+      valid: false,
+      errors: [
+        {
+          code: "SET_OVERSHOOT",
+          message: "set 3 should have ended before reaching this score",
+          set: 3,
+        },
+      ],
+    });
+  });
+
   it("ends a capped set at the cap, even with a 1-point margin", () => {
     const capped: MatchRules = {
       kind: "sets",
@@ -114,6 +128,18 @@ describe("validateScore with a fixed number of sets", () => {
     });
     expect(codes(twoFixedSets, sets([25, 20]))).toEqual(["MATCH_INCOMPLETE"]);
     expect(codes(twoFixedSets, sets([25, 20], [25, 20], [25, 20]))).toEqual(["TOO_MANY_SETS"]);
+  });
+
+  it("decides a fixed-sets match stopped by time on the unfinished set", () => {
+    const timed = { ...twoFixedSets, timeLimit: { minutes: 20 } };
+    expect(validateScore(timed, { ...sets([25, 20], [10, 14]), endedByTime: true })).toEqual({
+      valid: true,
+      outcome: "home",
+    });
+    expect(validateScore(timed, { ...sets([20, 25], [12, 12]), endedByTime: true })).toEqual({
+      valid: true,
+      outcome: "away",
+    });
   });
 
   it("does not use total points when time stops a match with level sets", () => {
