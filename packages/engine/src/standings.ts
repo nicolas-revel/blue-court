@@ -1,5 +1,5 @@
 import type { Match, Phase, SetScore, TeamId, TieBreaker } from "./model.js";
-import { type Side, validateScore } from "./score.js";
+import { type Side, setWinner, validateScore } from "./score.js";
 
 export interface StandingRow {
   readonly team: TeamId;
@@ -57,17 +57,22 @@ function matchLines(match: Match, rules: Rules): readonly [MatchLine, MatchLine]
   const totals = { home: { sets: 0, points: 0 }, away: { sets: 0, points: 0 } };
   let decidingSet = false;
   if (score.kind === "sets") {
+    // Only finished sets count: the last set of a match stopped by time may not be.
     score.sets.forEach((set: SetScore, index) => {
       totals.home.points += set.home;
       totals.away.points += set.away;
-      const unfinished = score.endedByTime === true && index === score.sets.length - 1;
-      if (!unfinished && set.home !== set.away)
-        totals[set.home > set.away ? "home" : "away"].sets += 1;
+      const winner = setWinner(matchRules, index, set);
+      if (winner !== undefined) totals[winner].sets += 1;
     });
+    // A tie-break win or loss needs the deciding set to have been played out.
+    const last = score.sets.length - 1;
+    const lastSet = score.sets[last];
     decidingSet =
       matchRules.kind === "sets" &&
       matchRules.setsToWin >= 2 &&
-      score.sets.length === 2 * matchRules.setsToWin - 1;
+      last === 2 * matchRules.setsToWin - 2 &&
+      lastSet !== undefined &&
+      setWinner(matchRules, last, lastSet) !== undefined;
   } else if (score.kind === "timed") {
     totals.home.points = score.home;
     totals.away.points = score.away;
@@ -176,10 +181,11 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
     throw new Error("SEED_REQUIRED: a random draw tie-breaker needs a seed");
   }
 
-  const totals = new Map(
-    teams.map((team) => [team, sumLines(lines.filter((l) => l.team === team))]),
-  );
-  const get = (team: TeamId) => totals.get(team) as Totals;
+  const byTeam = new Map<TeamId, MatchLine[]>(teams.map((team) => [team, []]));
+  for (const line of lines) byTeam.get(line.team)?.push(line);
+  const linesOf = (team: TeamId) => byTeam.get(team) ?? [];
+  const totals = new Map(teams.map((team) => [team, sumLines(linesOf(team))]));
+  const get = (team: TeamId) => totals.get(team) ?? sumLines([]);
 
   const key = (criterion: TieBreaker, team: TeamId, group: readonly TeamId[]): number => {
     const t = get(team);
@@ -193,8 +199,8 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
       case "pointRatio":
         return ratio(t.pointsWon, t.pointsLost);
       case "headToHead":
-        return lines
-          .filter((l) => l.team === team && group.includes(l.opponent))
+        return linesOf(team)
+          .filter((l) => group.includes(l.opponent))
           .reduce((sum, l) => sum + l.rankingPoints, 0);
       case "random":
         return drawKey(seed ?? 0, team);

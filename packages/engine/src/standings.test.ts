@@ -183,6 +183,104 @@ describe("computeStandings", () => {
     expect(order(rows)).toEqual(["B", "C", "A"]);
   });
 
+  it("counts only finished sets of a match stopped by time, with no tie-break points", () => {
+    const phase = {
+      ...ffvb,
+      matchRules: {
+        kind: "sets",
+        setsToWin: 3,
+        set: { pointsToWin: 25, winByTwo: true },
+        tieBreakSet: { pointsToWin: 15, winByTwo: true },
+        timeLimit: { minutes: 40 },
+      },
+    } as const satisfies StandingsInput["phase"];
+    const stopped = (...scores: [number, number][]): MatchScore =>
+      ({
+        ...sets(...scores),
+        endedByTime: true,
+      }) as MatchScore;
+    const fifth = computeStandings({
+      teams: ["A", "B"],
+      matches: [match("A", "B", stopped([25, 20], [20, 25], [25, 20], [20, 25], [10, 8]))],
+      phase,
+    });
+    expect(fifth[0]).toMatchObject({ team: "A", rankingPoints: 3, setsWon: 2, setsLost: 2 });
+    expect(fifth[0]).toMatchObject({ pointsWon: 100, pointsLost: 98 });
+    expect(fifth[1]).toMatchObject({ team: "B", rankingPoints: 0 });
+
+    // Time ran out right after a set was won: that set counts.
+    const third = computeStandings({
+      teams: ["A", "B"],
+      matches: [match("A", "B", stopped([25, 20], [20, 25], [25, 10]))],
+      phase,
+    });
+    expect(third[0]).toMatchObject({ team: "A", setsWon: 2, setsLost: 1 });
+  });
+
+  it("counts a forfeit under fixed sets and timed rules", () => {
+    const forfeit: MatchScore = { kind: "forfeit", forfeitedBy: "away" };
+    const [fixedWinner] = computeStandings({
+      teams: ["A", "B"],
+      matches: [match("A", "B", forfeit)],
+      phase: {
+        ...ffvb,
+        matchRules: {
+          kind: "fixedSets",
+          sets: 2,
+          set: { pointsToWin: 25, winByTwo: true },
+          drawAllowed: true,
+        },
+      },
+    });
+    expect(fixedWinner).toMatchObject({ team: "A", setsWon: 2, pointsWon: 50, rankingPoints: 3 });
+    const [timedWinner, timedLoser] = computeStandings({
+      teams: ["A", "B"],
+      matches: [match("A", "B", forfeit)],
+      phase: { ...ffvb, matchRules: { kind: "timed", durationMinutes: 8, drawAllowed: true } },
+    });
+    expect(timedWinner).toMatchObject({ team: "A", setsWon: 0, pointsWon: 0, rankingPoints: 3 });
+    expect(timedLoser).toMatchObject({ team: "B", pointsLost: 0, rankingPoints: 0 });
+  });
+
+  it("handles pools of zero and one team", () => {
+    expect(computeStandings({ teams: [], matches: [], phase: ffvb })).toEqual([]);
+    expect(computeStandings({ teams: ["A"], matches: [], phase: ffvb })).toEqual([
+      expect.objectContaining({ team: "A", rank: 1, played: 0, rankingPoints: 0 }),
+    ]);
+  });
+
+  it("sums head-to-head over every match between the level teams", () => {
+    // A and B have 5 points. They met twice: A won 3-0 (3-0 points), B won 3-2 (2-1), so
+    // head-to-head gives A 4, B 2.
+    const phase = { ...ffvb, tieBreakers: ["rankingPoints", "headToHead"] as const };
+    const win = sets([25, 0], [25, 0], [25, 0]);
+    const win32 = sets([25, 0], [25, 0], [0, 25], [0, 25], [15, 0]);
+    const rows = computeStandings({
+      teams: ["C", "B", "A"],
+      matches: [
+        match("A", "B", win),
+        match("B", "A", win32),
+        match("B", "C", win),
+        match("C", "A", win32),
+      ],
+      phase,
+    });
+    expect(rows.slice(0, 2).map((r) => r.rankingPoints)).toEqual([5, 5]);
+    expect(order(rows)).toEqual(["A", "B", "C"]);
+  });
+
+  it("puts a team that lost no set ahead, and treats nothing won or lost as 0", () => {
+    // A: 3 won, 0 lost. B: 0 won, 3 lost. C: nothing played. B and C both have a ratio of 0.
+    const phase = { ...ffvb, tieBreakers: ["setRatio"] as const };
+    const rows = computeStandings({
+      teams: ["C", "B", "A"],
+      matches: [match("A", "B", sets([25, 0], [25, 0], [25, 0]))],
+      phase,
+    });
+    expect(rows[0]?.team).toBe("A");
+    expect(rows.map((r) => r.rank)).toEqual([1, 2, 2]);
+  });
+
   it("shares a rank when every tie-breaker is level, and ignores unplayed matches", () => {
     const rows = computeStandings({
       teams: ["A", "B", "C"],

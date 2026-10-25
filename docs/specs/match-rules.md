@@ -30,6 +30,7 @@ The standings are recomputed from the pool's validated scores; a match without a
 
 - Each team's row shows matches played, wins, draws, losses, ranking points, sets won and lost, points won and lost.
 - Only finished sets count in the set totals: the unfinished last set of a match stopped by time adds its points but no set. A forfeit counts as described in "Forfeit in ratios"; a forfeited timed match adds no points.
+- A match stopped by time during the deciding set gives the ranking points of a regular win or loss: the tie-break points need the deciding set to be played out.
 - A ratio is won over lost. A team that lost nothing is ahead of every team that lost something; a team with nothing won or lost has a ratio of 0.
 - Tie-breakers are applied in the phase's order, only to the teams still level.
 - **Head-to-head**: the ranking points earned in the matches between the level teams only (a mini-league when three or more are level). If that separates some of them, it is applied again within each smaller group still level, before moving to the next tie-breaker.
