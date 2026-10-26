@@ -208,6 +208,17 @@ describe("adjustSchedule", () => {
     expect(run([{ match: first, start: Number.NaN }])).toThrow(
       expect.objectContaining({ code: "INVALID_DURATION" }),
     );
+    const twice = [...plan, ...plan.slice(0, 1)];
+    expect(() =>
+      adjustSchedule({
+        schedule: twice,
+        matches,
+        settings: settings(1),
+        actual: [],
+        now: 540,
+        earlyStart: false,
+      }),
+    ).toThrow(expect.objectContaining({ code: "DUPLICATE_MATCH" }));
   });
 });
 
@@ -293,6 +304,12 @@ describe("moveMatch and removeCourt", () => {
     );
     expect(() => removeCourt({ schedule: plan, court: "C9", courts: ["C1", "C2"], from })).toThrow(
       expect.objectContaining({ code: "UNKNOWN_COURT" }),
+    );
+    expect(() =>
+      removeCourt({ schedule: plan, court: "C2", courts: ["C1", "C2"], from: Number.NaN }),
+    ).toThrow(expect.objectContaining({ code: "INVALID_DURATION" }));
+    expect(() => assignReferees({ schedule: plan, matches, from: Number.NaN })).toThrow(
+      expect.objectContaining({ code: "INVALID_DURATION" }),
     );
   });
 });

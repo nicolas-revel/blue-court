@@ -49,3 +49,16 @@ The standings are recomputed from the pool's validated scores; a match without a
 | Maximum duration of a match in sets | None |
 | Ranking points | Win 3-0 or 3-1: 3 / 0; win 3-2: 2 / 1; win by forfeit: 3; forfeit: 0 |
 | Pool tie-breakers | Ranking points, then set ratio, then point ratio |
+
+## Configuration validation
+
+Before a tournament starts, its settings are checked, so that a configuration that can never work is refused with an error naming the setting (a stable code, an English message for the logs and the path of the setting, which the UI translates).
+
+- Teams: ids and seeds are unique, and a seed is a whole number from 1.
+- Phases: at least one, with unique ids.
+- Sets: at least 1 point to win, and a cap above the points to win.
+- Matches: 1 to 3 sets to win, at least 1 fixed set, positive durations and time limits, no tie-break set when one set wins the match, and no draw with an odd number of fixed sets.
+- Ranking points are numbers, and each tie-breaker is used once.
+- Formats: 1 pool up to one per team, bands of at least 2 teams, and at least 2 teams for a bracket.
+- Qualification: each phase is checked with the number of teams the previous one qualifies. The top of each pool cannot take more teams than there are; the best teams at a rank are taken below the qualified ranks, at most one per pool. Level pools only know their number of pools once the previous ranking is in, so their qualification is checked then.
+

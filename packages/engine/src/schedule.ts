@@ -193,6 +193,9 @@ export function adjustSchedule(input: {
   const byId = indexMatches(input.matches);
   const { courts, matchMinutes, breakMinutes } = settings;
   const planned = new Map(schedule.map((entry) => [entry.match, entry]));
+  if (planned.size !== schedule.length) {
+    throw new ScheduleError("DUPLICATE_MATCH", "a match is scheduled twice");
+  }
   for (const entry of schedule) {
     if (!byId.has(entry.match)) {
       throw new ScheduleError("UNKNOWN_MATCH", `match ${entry.match} is not in the matches`);
@@ -304,6 +307,8 @@ export function removeCourt(input: {
   readonly from: number;
 }): ScheduledMatch[] {
   const { schedule, court, from } = input;
+  if (!Number.isFinite(from))
+    throw new ScheduleError("INVALID_DURATION", "`from` must be a number");
   const remaining = input.courts.filter((c) => c !== court);
   if (!input.courts.includes(court)) {
     throw new ScheduleError("UNKNOWN_COURT", `court ${court} is not in the courts`);
@@ -340,6 +345,9 @@ export function assignReferees(input: {
   readonly from?: number;
 }): ScheduledMatch[] {
   const byId = indexMatches(input.matches);
+  if (input.from !== undefined && !Number.isFinite(input.from)) {
+    throw new ScheduleError("INVALID_DURATION", "`from` must be a number");
+  }
   const from = input.from ?? Number.NEGATIVE_INFINITY;
   const teams = [...new Set(input.matches.flatMap((m) => m.teams))].sort(byTeamId);
   const groupsOf = new Map<TeamId, Set<string>>();
