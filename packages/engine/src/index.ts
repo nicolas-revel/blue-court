@@ -46,6 +46,19 @@ export {
 } from "./pools.js";
 export { type Pairing, roundRobin } from "./round-robin.js";
 export {
+  type ActualTimes,
+  adjustSchedule,
+  assignReferees,
+  moveMatch,
+  planSchedule,
+  removeCourt,
+  type SchedulableMatch,
+  type ScheduledMatch,
+  ScheduleError,
+  type ScheduleErrorCode,
+  type ScheduleSettings,
+} from "./schedule.js";
+export {
   type MatchOutcome,
   type ScoreError,
   type ScoreErrorCode,

@@ -1,0 +1,381 @@
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
+import { roundRobin } from "./round-robin.js";
+import {
+  adjustSchedule,
+  assignReferees,
+  moveMatch,
+  planSchedule,
+  removeCourt,
+  type SchedulableMatch,
+  type ScheduledMatch,
+  type ScheduleSettings,
+} from "./schedule.js";
+
+const teams = (n: number, prefix = "T") => Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
+
+/** Every match of a round-robin pool, round after round. */
+const pool = (names: readonly string[], group: string): SchedulableMatch[] =>
+  roundRobin(names).flatMap((round, r) =>
+    round.map((p, i) => ({ id: `${group}:${r + 1}:${i + 1}`, teams: [p.home, p.away], group })),
+  );
+
+const settings = (courts: number, overrides: Partial<ScheduleSettings> = {}): ScheduleSettings => ({
+  courts: teams(courts, "C"),
+  start: 9 * 60,
+  matchMinutes: 20,
+  breakMinutes: 5,
+  ...overrides,
+});
+
+const teamsOf = (matches: readonly SchedulableMatch[], entry: ScheduledMatch) =>
+  matches.find((m) => m.id === entry.match)?.teams ?? [];
+
+const overlap = (a: ScheduledMatch, b: ScheduledMatch) => a.start < b.end && b.start < a.end;
+
+/** No team and no court is in two places at once, breaks included. */
+function expectConsistent(
+  matches: readonly SchedulableMatch[],
+  schedule: readonly ScheduledMatch[],
+  breakMinutes: number,
+) {
+  for (const a of schedule) {
+    for (const b of schedule) {
+      if (a === b || a.start > b.start || (a.start === b.start && a.match > b.match)) continue;
+      const gap = b.start - a.end;
+      if (a.court === b.court) expect(gap).toBeGreaterThanOrEqual(breakMinutes);
+      if (teamsOf(matches, a).some((t) => teamsOf(matches, b).includes(t))) {
+        expect(gap).toBeGreaterThanOrEqual(breakMinutes);
+      }
+    }
+  }
+  for (const m of matches) {
+    const entry = schedule.find((e) => e.match === m.id);
+    for (const id of m.after ?? []) {
+      const before = schedule.find((e) => e.match === id);
+      expect(before && entry && entry.start - before.end).toBeGreaterThanOrEqual(breakMinutes);
+    }
+  }
+}
+
+describe("planSchedule", () => {
+  it("plays a 5-team pool on one court without back-to-back matches", () => {
+    const matches = pool(teams(5), "A");
+    const schedule = planSchedule({ matches, settings: settings(1) });
+    expect(schedule.map((e) => e.start)).toEqual(
+      Array.from({ length: 10 }, (_, i) => 540 + 25 * i),
+    );
+    for (let i = 1; i < schedule.length; i += 1) {
+      const [previous, current] = [schedule[i - 1], schedule[i]];
+      if (previous === undefined || current === undefined) continue;
+      expect(teamsOf(matches, current).some((t) => teamsOf(matches, previous).includes(t))).toBe(
+        false,
+      );
+    }
+  });
+
+  it("fills every court and keeps a team on one court at a time", () => {
+    const matches = [...pool(teams(4, "A"), "A"), ...pool(teams(4, "B"), "B")];
+    const schedule = planSchedule({ matches, settings: settings(2) });
+    expect(schedule).toHaveLength(12);
+    expect(schedule.filter((e) => e.start === 540).map((e) => e.court)).toEqual(["C1", "C2"]);
+    expectConsistent(matches, schedule, 5);
+  });
+
+  it("waits for the matches that feed a bracket match", () => {
+    const matches: SchedulableMatch[] = [
+      { id: "final", teams: [], after: ["semi1", "semi2"] },
+      { id: "semi1", teams: ["T1", "T4"] },
+      { id: "semi2", teams: ["T2", "T3"] },
+    ];
+    const schedule = planSchedule({ matches, settings: settings(3) });
+    expect(schedule).toEqual([
+      { match: "semi1", court: "C1", start: 540, end: 560 },
+      { match: "semi2", court: "C2", start: 540, end: 560 },
+      { match: "final", court: "C1", start: 565, end: 585 },
+    ]);
+  });
+
+  it("refuses bad settings and bad matches", () => {
+    const matches = pool(teams(3), "A");
+    const fails = (code: string, run: () => unknown) =>
+      expect(run).toThrow(expect.objectContaining({ code }));
+    fails("NO_COURT", () => planSchedule({ matches, settings: settings(0) }));
+    fails("DUPLICATE_COURT", () =>
+      planSchedule({ matches, settings: settings(1, { courts: ["C1", "C1"] }) }),
+    );
+    fails("INVALID_DURATION", () =>
+      planSchedule({ matches, settings: settings(1, { matchMinutes: 0 }) }),
+    );
+    fails("INVALID_DURATION", () =>
+      planSchedule({ matches, settings: settings(1, { breakMinutes: -1 }) }),
+    );
+    fails("DUPLICATE_MATCH", () =>
+      planSchedule({ matches: [...matches, ...matches], settings: settings(1) }),
+    );
+    fails("SAME_TEAM", () =>
+      planSchedule({ matches: [{ id: "m", teams: ["T1", "T1"] }], settings: settings(1) }),
+    );
+    fails("UNKNOWN_MATCH", () =>
+      planSchedule({ matches: [{ id: "m", teams: [], after: ["x"] }], settings: settings(1) }),
+    );
+    fails("CYCLE", () =>
+      planSchedule({
+        matches: [
+          { id: "a", teams: [], after: ["b"] },
+          { id: "b", teams: [], after: ["a"] },
+        ],
+        settings: settings(1),
+      }),
+    );
+  });
+});
+
+describe("adjustSchedule", () => {
+  const matches = pool(teams(4), "A");
+  const plan = planSchedule({ matches, settings: settings(1) });
+  const first = plan[0]?.match ?? "";
+
+  it("pushes the next matches back when a match ends late", () => {
+    const adjusted = adjustSchedule({
+      schedule: plan,
+      matches,
+      settings: settings(1),
+      actual: [{ match: first, start: 540, end: 570 }],
+      now: 570,
+      earlyStart: false,
+    });
+    expect(adjusted.map((e) => e.start)).toEqual([540, 575, 600, 625, 650, 675]);
+  });
+
+  it("brings matches forward when a match ends early, only with early starts", () => {
+    const run = (earlyStart: boolean) =>
+      adjustSchedule({
+        schedule: plan,
+        matches,
+        settings: settings(1),
+        actual: [{ match: first, start: 540, end: 550 }],
+        now: 550,
+        earlyStart,
+      }).map((e) => e.start);
+    expect(run(true)).toEqual([540, 555, 580, 605, 630, 655]);
+    expect(run(false)).toEqual([540, 565, 590, 615, 640, 665]);
+  });
+
+  it("expects a match still being played to end no earlier than now", () => {
+    const adjusted = adjustSchedule({
+      schedule: plan,
+      matches,
+      settings: settings(1),
+      actual: [{ match: first, start: 545 }],
+      now: 580,
+      earlyStart: false,
+    });
+    expect(adjusted[0]).toMatchObject({ start: 545, end: 580 });
+    expect(adjusted[1]?.start).toBe(585);
+  });
+
+  it("refuses times for a match that is not in the schedule", () => {
+    expect(() =>
+      adjustSchedule({
+        schedule: plan,
+        matches,
+        settings: settings(1),
+        actual: [{ match: "x", start: 540 }],
+        now: 540,
+        earlyStart: false,
+      }),
+    ).toThrow(expect.objectContaining({ code: "UNKNOWN_MATCH" }));
+  });
+});
+
+describe("moveMatch and removeCourt", () => {
+  const matches = [...pool(teams(4, "A"), "A"), ...pool(teams(4, "B"), "B")];
+  const plan = planSchedule({ matches, settings: settings(2) });
+
+  it("moves a match to another court and time", () => {
+    const last = plan.at(-1);
+    if (last === undefined) throw new Error("empty plan");
+    const moved = moveMatch(plan, last.match, { court: "C3", start: 600 });
+    expect(moved.find((e) => e.match === last.match)).toMatchObject({
+      court: "C3",
+      start: 600,
+      end: 620,
+    });
+    expect(() => moveMatch(plan, "x", { court: "C1", start: 0 })).toThrow(
+      expect.objectContaining({ code: "UNKNOWN_MATCH" }),
+    );
+  });
+
+  it("spreads the matches of a removed court over the others", () => {
+    const from = 590;
+    const removed = removeCourt({ schedule: plan, court: "C2", courts: ["C1", "C2"], from });
+    expect(removed.filter((e) => e.court === "C2").every((e) => e.start < from)).toBe(true);
+    const adjusted = adjustSchedule({
+      schedule: removed,
+      matches,
+      settings: settings(2),
+      actual: plan.filter((e) => e.start < from).map((e) => ({ ...e })),
+      now: from,
+      earlyStart: false,
+    });
+    expect(adjusted.filter((e) => e.start >= from).every((e) => e.court === "C1")).toBe(true);
+    expectConsistent(matches, adjusted, 5);
+    expect(() => removeCourt({ schedule: plan, court: "C1", courts: ["C1"], from })).toThrow(
+      expect.objectContaining({ code: "NO_COURT" }),
+    );
+  });
+});
+
+describe("assignReferees", () => {
+  it("takes a resting team of the same pool", () => {
+    const matches = [...pool(teams(3, "A"), "A"), ...pool(teams(3, "B"), "B")];
+    const schedule = assignReferees({
+      schedule: planSchedule({ matches, settings: settings(2) }),
+      matches,
+    });
+    for (const entry of schedule) {
+      const match = matches.find((m) => m.id === entry.match);
+      expect(entry.referee).toBeDefined();
+      expect(match?.teams).not.toContain(entry.referee);
+      expect(entry.referee?.[0]).toBe(match?.group);
+    }
+  });
+
+  it("leaves a match without referee when every team plays", () => {
+    const matches: SchedulableMatch[] = [{ id: "m", teams: ["T1", "T2"] }];
+    const [entry] = assignReferees({
+      schedule: planSchedule({ matches, settings: settings(1) }),
+      matches,
+    });
+    expect(entry?.referee).toBeUndefined();
+  });
+});
+
+const scheduleArb = fc.record({
+  pools: fc.array(fc.integer({ min: 2, max: 7 }), { minLength: 1, maxLength: 4 }),
+  courts: fc.integer({ min: 1, max: 4 }),
+  breakMinutes: fc.integer({ min: 0, max: 10 }),
+});
+
+const poolsOf = (sizes: readonly number[]) =>
+  sizes.flatMap((size, p) => pool(teams(size, `P${p}-`), `P${p}`));
+
+describe("schedule properties", () => {
+  it("places every match once, never two at a time for a team or a court", () => {
+    fc.assert(
+      fc.property(scheduleArb, ({ pools, courts, breakMinutes }) => {
+        const matches = poolsOf(pools);
+        const schedule = planSchedule({ matches, settings: settings(courts, { breakMinutes }) });
+        expect(schedule.map((e) => e.match).sort()).toEqual(matches.map((m) => m.id).sort());
+        expectConsistent(matches, schedule, breakMinutes);
+      }),
+    );
+  });
+
+  it("only plays a team back-to-back when no rested match was ready", () => {
+    fc.assert(
+      fc.property(scheduleArb, ({ pools, courts, breakMinutes }) => {
+        const matches = poolsOf(pools);
+        const s = settings(courts, { breakMinutes });
+        const schedule = planSchedule({ matches, settings: s });
+        const slot = s.matchMinutes + s.breakMinutes;
+        const lastEnd = (team: string, time: number) =>
+          Math.max(
+            Number.NEGATIVE_INFINITY,
+            ...schedule
+              .filter((e) => e.end <= time && teamsOf(matches, e).includes(team))
+              .map((e) => e.end),
+          );
+        const rested = (m: SchedulableMatch, time: number) =>
+          m.teams.every((t) => time - lastEnd(t, time) >= slot);
+        for (const entry of schedule) {
+          // Matches placed before this one: earlier, or at the same time on an earlier court.
+          const before = schedule.slice(0, schedule.indexOf(entry));
+          const ready = (m: SchedulableMatch, time: number) =>
+            m.teams.every((t) =>
+              before.every((e) => !teamsOf(matches, e).includes(t) || e.end + breakMinutes <= time),
+            );
+          const match = matches.find((m) => m.id === entry.match);
+          if (match === undefined || rested(match, entry.start)) continue;
+          // Matches not started yet at that time, which this court could have taken instead.
+          const waiting = matches.filter(
+            (m) => !before.some((e) => e.match === m.id) && m.id !== entry.match,
+          );
+          expect(waiting.some((m) => ready(m, entry.start) && rested(m, entry.start))).toBe(false);
+        }
+      }),
+    );
+  });
+
+  it("keeps a consistent schedule after random delays", () => {
+    fc.assert(
+      fc.property(
+        scheduleArb,
+        fc.array(fc.integer({ min: -10, max: 20 }), { minLength: 30, maxLength: 30 }),
+        fc.boolean(),
+        ({ pools, courts, breakMinutes }, delays, earlyStart) => {
+          const matches = poolsOf(pools);
+          const s = settings(courts, { breakMinutes });
+          const plan = planSchedule({ matches, settings: s });
+          // The first half of the matches are played, each off by a random delay.
+          let schedule = plan;
+          const actual: { match: string; start: number; end: number }[] = [];
+          const played = plan.slice(0, Math.floor(plan.length / 2));
+          for (const [i, entry] of played.entries()) {
+            const current = schedule.find((e) => e.match === entry.match) ?? entry;
+            const end = current.start + s.matchMinutes + (delays[i % delays.length] ?? 0);
+            actual.push({ match: entry.match, start: current.start, end });
+            schedule = adjustSchedule({
+              schedule: plan,
+              matches,
+              settings: s,
+              actual,
+              now: end,
+              earlyStart,
+            });
+          }
+          const now = Math.max(s.start, ...actual.map((a) => a.end));
+          expectConsistent(
+            matches,
+            schedule.filter((e) => !actual.some((a) => a.match === e.match)),
+            breakMinutes,
+          );
+          for (const entry of schedule) {
+            const real = actual.find((a) => a.match === entry.match);
+            if (real !== undefined)
+              expect(entry).toMatchObject({ start: real.start, end: real.end });
+            else {
+              expect(entry.start).toBeGreaterThanOrEqual(now);
+              if (!earlyStart) {
+                expect(entry.start).toBeGreaterThanOrEqual(
+                  plan.find((e) => e.match === entry.match)?.start ?? 0,
+                );
+              }
+            }
+          }
+        },
+      ),
+    );
+  });
+
+  it("never gives a referee a match it plays or two matches at once", () => {
+    fc.assert(
+      fc.property(scheduleArb, ({ pools, courts, breakMinutes }) => {
+        const matches = poolsOf(pools);
+        const schedule = assignReferees({
+          schedule: planSchedule({ matches, settings: settings(courts, { breakMinutes }) }),
+          matches,
+        });
+        for (const entry of schedule) {
+          if (entry.referee === undefined) continue;
+          for (const other of schedule) {
+            if (!overlap(entry, other)) continue;
+            expect(teamsOf(matches, other)).not.toContain(entry.referee);
+            if (other !== entry) expect(other.referee).not.toBe(entry.referee);
+          }
+        }
+      }),
+    );
+  });
+});
