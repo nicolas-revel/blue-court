@@ -1,10 +1,13 @@
+export { EngineError } from "./errors.js";
 export { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
 export type {
+  LevelPoolGrouping,
   Match,
   MatchRules,
   MatchScore,
   Phase,
   PhaseFormat,
+  PoolDraw,
   Qualification,
   RankingPoints,
   SetRules,
@@ -15,6 +18,19 @@ export type {
   TimeLimit,
   Tournament,
 } from "./model.js";
+export {
+  buildLevelPools,
+  type CrossPoolInput,
+  drawPools,
+  type LevelPoolsInput,
+  moveTeam,
+  type PoolDrawInput,
+  type PoolPlacement,
+  type Pools,
+  PoolsError,
+  type PoolsErrorCode,
+  rankAcrossPools,
+} from "./pools.js";
 export { type Pairing, roundRobin } from "./round-robin.js";
 export {
   type MatchOutcome,
