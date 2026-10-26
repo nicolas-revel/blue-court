@@ -240,6 +240,9 @@ export function validateTournament(tournament: Tournament): ConfigValidation {
   const errors: ConfigError[] = [];
   const report: Report = (code, message, path) => errors.push({ code, message, path });
   checkTeams(tournament.teams, report);
+  if (tournament.teams.length < 2) {
+    report("TOO_FEW_TEAMS", "a tournament needs at least 2 teams", ["teams"]);
+  }
   if (tournament.phases.length === 0) report("NO_PHASE", "a tournament needs a phase", ["phases"]);
   const ids = new Set<string>();
   let teams = tournament.teams.length;

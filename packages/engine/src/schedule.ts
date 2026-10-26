@@ -307,8 +307,9 @@ export function removeCourt(input: {
   readonly from: number;
 }): ScheduledMatch[] {
   const { schedule, court, from } = input;
-  if (!Number.isFinite(from))
+  if (!Number.isFinite(from)) {
     throw new ScheduleError("INVALID_DURATION", "`from` must be a number");
+  }
   const remaining = input.courts.filter((c) => c !== court);
   if (!input.courts.includes(court)) {
     throw new ScheduleError("UNKNOWN_COURT", `court ${court} is not in the courts`);

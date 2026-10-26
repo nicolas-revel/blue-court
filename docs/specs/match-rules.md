@@ -54,7 +54,7 @@ The standings are recomputed from the pool's validated scores; a match without a
 
 Before a tournament starts, its settings are checked, so that a configuration that can never work is refused with an error naming the setting (a stable code, an English message for the logs and the path of the setting, which the UI translates).
 
-- Teams: ids and seeds are unique, and a seed is a whole number from 1.
+- Teams: at least 2, ids and seeds are unique, and a seed is a whole number from 1.
 - Phases: at least one, with unique ids.
 - Sets: at least 1 point to win, and a cap above the points to win.
 - Matches: 1 to 3 sets to win, at least 1 fixed set, positive durations and time limits, no tie-break set when one set wins the match, and no draw with an odd number of fixed sets.

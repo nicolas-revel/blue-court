@@ -84,6 +84,11 @@ describe("validateTournament", () => {
     });
   });
 
+  it("needs at least 2 teams", () => {
+    expect(codes({ ...clubDay(), teams: [] })).toContain("TOO_FEW_TEAMS");
+    expect(codes({ ...clubDay(), teams: clubDay().teams.slice(0, 1) })).toContain("TOO_FEW_TEAMS");
+  });
+
   it("follows the qualified teams from phase to phase", () => {
     const t = withPhase(clubDay(), 0, { qualification: { kind: "topOverall", count: 1 } });
     expect(codes(t)).toEqual(["TOO_FEW_TEAMS"]);
@@ -336,6 +341,7 @@ const mutations: readonly [ConfigErrorCode, (t: Tournament) => Tournament][] = [
     (t) =>
       withPhase(t, 1, { format: { kind: "levelPools", grouping: { kind: "bands", poolSize: 1 } } }),
   ],
+  ["TOO_FEW_TEAMS", (t) => ({ ...t, teams: [] })],
   [
     "TOO_FEW_TEAMS",
     (t) =>
