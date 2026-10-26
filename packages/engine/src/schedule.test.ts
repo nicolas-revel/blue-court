@@ -223,6 +223,7 @@ describe("moveMatch and removeCourt", () => {
       court: "C3",
       start: 600,
       end: 620,
+      notBefore: 600,
     });
     const courts = ["C1", "C2"];
     expect(() => moveMatch(plan, "x", { court: "C1", start: 0 }, courts)).toThrow(
@@ -234,6 +235,21 @@ describe("moveMatch and removeCourt", () => {
     expect(() => moveMatch(plan, last.match, { court: "C1", start: Number.NaN }, courts)).toThrow(
       expect.objectContaining({ code: "INVALID_DURATION" }),
     );
+  });
+
+  it("keeps a moved match at its new time, even with early starts", () => {
+    const first = plan[0];
+    if (first === undefined) throw new Error("empty plan");
+    const moved = moveMatch(plan, first.match, { court: first.court, start: 700 }, ["C1", "C2"]);
+    const adjusted = adjustSchedule({
+      schedule: moved,
+      matches,
+      settings: settings(2),
+      actual: [],
+      now: 540,
+      earlyStart: true,
+    });
+    expect(adjusted.find((e) => e.match === first.match)?.start).toBe(700);
   });
 
   it("keeps a bracket match after its feeders when a feeder is moved later", () => {
@@ -447,6 +463,7 @@ describe("schedule properties", () => {
           court,
           start,
           end: start + entry.end - entry.start,
+          notBefore: start,
         });
         expect(moved.filter((e) => e.match !== entry.match)).toEqual(
           plan.filter((e) => e.match !== entry.match),
@@ -519,6 +536,9 @@ describe("schedule properties", () => {
             earlyStart,
           });
           expect(adjusted.map((e) => e.match).sort()).toEqual(plan.map((e) => e.match).sort());
+          expect(adjusted.find((e) => e.match === entry.match)?.start).toBeGreaterThanOrEqual(
+            s.start + offset,
+          );
           expectConsistent(matches, adjusted, s.breakMinutes);
         },
       ),

@@ -12,7 +12,7 @@ The organizer sets the courts, the start time, the estimated match duration and 
 
 - The schedule adjusts itself when a match ends early or late. A match that started keeps its real times, and a match still being played is expected to end no earlier than now. The other matches keep their court and their order on it, and start once their court, their teams and the matches they wait for are free, never before now. When the scoring table starts a match ahead of its turn, the matches it skipped on that court come after it.
 - Whether a match can start before its planned time when everything ends early is a setting. Without it, planned times are only pushed back.
-- The organizer can move a match to another court or time slot; the matches around it then adjust.
+- The organizer can move a match to another court or time slot. The moved match never starts before its new time, even when early starts are allowed, and the matches around it then adjust.
 - A court can be removed during the day: its remaining matches are spread over the other courts, the least loaded first, then the schedule adjusts.
 
 ## Refereeing

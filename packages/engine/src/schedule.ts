@@ -44,6 +44,8 @@ export interface ScheduledMatch {
   readonly end: number;
   /** Resting team that referees the match, when refereeing is on. */
   readonly referee?: TeamId;
+  /** Set when the organizer moved the match: it never starts earlier, even with early starts. */
+  readonly notBefore?: number;
 }
 
 function validateSettings(settings: ScheduleSettings): void {
@@ -249,6 +251,7 @@ export function adjustSchedule(input: {
     const start = Math.max(
       now,
       input.earlyStart ? Number.NEGATIVE_INFINITY : entry.start,
+      entry.notBefore ?? Number.NEGATIVE_INFINITY,
       courtFree.get(entry.court) ?? Number.NEGATIVE_INFINITY,
       ...(match?.teams ?? []).map((team) => teamFree.get(team) ?? Number.NEGATIVE_INFINITY),
       ...waits,
@@ -260,7 +263,8 @@ export function adjustSchedule(input: {
 
 /**
  * Moves a match to another court or time, as the organizer decides. The match keeps its
- * duration; run `adjustSchedule` afterwards to shift the matches around it.
+ * duration and never starts before the new time, even with early starts; run `adjustSchedule`
+ * afterwards to shift the matches around it.
  */
 export function moveMatch(
   schedule: readonly ScheduledMatch[],
@@ -283,6 +287,7 @@ export function moveMatch(
     court: to.court,
     start: to.start,
     end: to.start + entry.end - entry.start,
+    notBefore: to.start,
   };
   return schedule.map((e) => (e === entry ? moved : e));
 }
