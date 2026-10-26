@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "title": "Blue Court",
+    "description": "Gestionnaire de tournois de volley"
+  },
+  "home": {
+    "tagline": "Gestionnaire de tournois de volley",
+    "intro": "Poules, tableaux, planning des terrains et table de marque : tout se règle selon votre club.",
+    "start": "Créer un tournoi"
+  }
+}

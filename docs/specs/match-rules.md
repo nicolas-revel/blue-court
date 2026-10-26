@@ -52,7 +52,7 @@ The standings are recomputed from the pool's validated scores; a match without a
 
 ## Configuration validation
 
-Before a tournament starts, its settings are checked, so that a configuration that can never work is refused with an error naming the setting (a stable code, an English message for the logs and the path of the setting, which the UI translates).
+Before a tournament starts, its settings are checked (a tournament is only created once they pass, and its draw seed is drawn then), so that a configuration that can never work is refused with an error naming the setting (a stable code, an English message for the logs and the path of the setting, which the UI translates).
 
 - Teams: at least 2, ids and seeds are unique, and a seed is a whole number from 1.
 - Phases: at least one, with unique ids.

@@ -22,7 +22,11 @@ Details in [docs/method.md](docs/method.md).
 ```sh
 pnpm install
 pnpm check
+cp .env.example .env        # choose a database password
+docker compose up --build   # web app on :3000, API on :4000
 ```
+
+See [docs/deployment.md](docs/deployment.md) for running the apps and deploying them.
 
 ## License
 
