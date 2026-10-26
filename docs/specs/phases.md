@@ -34,9 +34,11 @@ Typical club format: pools in the morning, then level pools or a full placement 
 - When the number of teams is not a power of 2, the bracket is filled up to the next power of 2 with byes, given to the top seeds: a team facing a bye goes through without playing.
 - An elimination match needs a winner: a score that ends in a draw is refused.
 - A score is refused for a match that is not in the bracket, entered twice, or not playable yet (its teams are not known, or one side is a bye).
+- A score must keep the home and away sides of the bracket match: the scoring table enters it on that match, so swapped teams are refused.
 - **Single elimination**: the loser is out. Teams knocked out in the same round share a place (two 3rd, four 5th...); there is no match for 3rd place.
 - **Consolation bracket** (optional): the teams that lost their first-round match play their own single elimination bracket.
 - **Full placement bracket**: after each round, winners play on for the top places and losers for the places below, until every team has a unique place. Byes only fill empty sides, so the N teams still get places 1 to N. Every team plays log2 of the bracket size matches at most (4 for 16 teams), exactly that many when the number of teams is a power of 2.
+- **Double elimination**: a team is out after its second loss. Losers of the winners bracket drop into the losers bracket, in reverse order so that two teams do not meet again straight away. The winners bracket champion meets the losers bracket champion in the grand final. With a reset, a second final is played only when the losers bracket champion wins the first one, since the other finalist has then lost only once. Teams knocked out in the same losers bracket round share a place; the losers bracket final gives 3rd place.
 
 ## Cross-cutting rules
 

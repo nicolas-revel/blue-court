@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type BracketMatch,
   bracketPlaces,
+  doubleElimination,
   fullPlacement,
   resolveBracket,
   singleElimination,
@@ -135,6 +136,67 @@ describe("fullPlacement", () => {
 });
 
 const bracketOf8 = () => singleElimination({ teams: teams(8), consolation: false });
+
+describe("doubleElimination", () => {
+  it("sends winners bracket losers to the losers bracket and places 8 teams", () => {
+    const bracket = doubleElimination({ teams: teams(8), grandFinalReset: false });
+    expect(bracket.filter((m) => m.bracket === "winners")).toHaveLength(7);
+    expect(bracket.filter((m) => m.bracket === "losers")).toHaveLength(6);
+    // Winners bracket round 2 losers meet the losers bracket survivors in reverse order.
+    const drop = bracket.filter((m) => m.bracket === "losers" && m.id.startsWith("losers:2:"));
+    expect(drop.map((m) => m.away)).toEqual([
+      { kind: "loser", match: "winners:2:2" },
+      { kind: "loser", match: "winners:2:1" },
+    ]);
+    const { resolved } = play(bracket, favorites);
+    expect(bracketPlaces(resolved)).toEqual([
+      { team: "T1", place: 1 },
+      { team: "T2", place: 2 },
+      { team: "T3", place: 3 },
+      { team: "T4", place: 4 },
+      { team: "T5", place: 5 },
+      { team: "T6", place: 5 },
+      { team: "T8", place: 7 },
+      { team: "T7", place: 7 },
+    ]);
+  });
+
+  it("plays the reset only when the losers bracket champion wins the grand final", () => {
+    const bracket = doubleElimination({ teams: teams(4), grandFinalReset: true });
+    const reset = (resolved: ReturnType<typeof resolveBracket>) =>
+      resolved.find((r) => r.match.id === "final:2:1");
+
+    const kept = play(bracket, favorites);
+    expect(reset(kept.resolved)?.playable).toBe(false);
+    expect(kept.played.map((m) => m.id)).not.toContain("final:2:1");
+    expect(bracketPlaces(kept.resolved).slice(0, 2)).toEqual([
+      { team: "T1", place: 1 },
+      { team: "T2", place: 2 },
+    ]);
+
+    // T2 loses the winners bracket final to T1, then wins every match after it.
+    let meetings = 0;
+    const comeback = play(bracket, (home, away) => {
+      if (home !== "T2" && away !== "T2") return favorites(home, away);
+      const t2Wins = !(home === "T1" || away === "T1") || meetings++ > 0;
+      return t2Wins === (home === "T2");
+    });
+    expect(comeback.played.map((m) => m.id)).toContain("final:2:1");
+    expect(bracketPlaces(comeback.resolved).slice(0, 2)).toEqual([
+      { team: "T2", place: 1 },
+      { team: "T1", place: 2 },
+    ]);
+  });
+
+  it("refuses a score for a reset that is not played", () => {
+    const bracket = doubleElimination({ teams: teams(2), grandFinalReset: true });
+    const { played } = play(bracket, favorites);
+    const extra: Match = { id: "final:2:1", phaseId: "finals", home: "T1", away: "T2", score: win };
+    expect(() => resolveBracket(bracket, [...played, extra], FFVB_MATCH_RULES)).toThrow(
+      expect.objectContaining({ code: "NOT_PLAYABLE" }),
+    );
+  });
+});
 
 describe("resolveBracket", () => {
   const bracket = singleElimination({ teams: teams(2), consolation: false });
@@ -292,6 +354,32 @@ describe("bracket properties", () => {
             }
           }
         }
+      }),
+    );
+  });
+
+  it("knocks every team but the finalists out after exactly 2 losses", () => {
+    fc.assert(
+      fc.property(bracketArb, fc.boolean(), ({ n, picks }, grandFinalReset) => {
+        const { resolved, played } = play(
+          doubleElimination({ teams: teams(n), grandFinalReset }),
+          (_h, _a, i) => picks[i % picks.length] ?? true,
+        );
+        const places = bracketPlaces(resolved);
+        expect(places.map((p) => p.team).sort()).toEqual(teams(n).sort());
+        expect(places.filter((p) => p.place === 1)).toHaveLength(1);
+        for (const p of places) expect(p.place).toBeLessThanOrEqual(n);
+        const losses = (team: string) =>
+          resolved.filter((r) => r.playable && r.loser === team).length;
+        for (const { team, place } of places) {
+          if (place === 1) expect(losses(team)).toBeLessThanOrEqual(1);
+          else if (place === 2 && !grandFinalReset) expect(losses(team)).toBeGreaterThanOrEqual(1);
+          else expect(losses(team)).toBe(2);
+        }
+        // A reset is only played when the losers bracket champion won the first final.
+        const final = resolved.find((r) => r.match.id === "final:1:1");
+        const resetPlayed = played.some((m) => m.id === "final:2:1");
+        expect(resetPlayed).toBe(grandFinalReset && final?.winner === final?.away);
       }),
     );
   });
