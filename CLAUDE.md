@@ -9,7 +9,9 @@ A configurable volleyball tournament manager. Public project, built with an AI-a
 - `docs/method.md`: the working method and the role of each harness component.
 - `.claude/skills/`: `grill`, `write-spec`, `implement-issue`, `engine-tests`, `lint-rule`, `specs-and-journal`, `review-pr`.
 - `packages/engine`: tournament engine in pure TypeScript.
-- `apps/`: NestJS API and Next.js front end, coming later.
+- `apps/api`: NestJS API (PostgreSQL through Prisma, WebSocket gateway).
+- `apps/web`: Next.js front end (Tailwind, shadcn/ui, PWA), UI in French through `messages/fr.json`.
+- `docs/deployment.md`: Docker Compose, locally and on the VPS behind Caddy.
 
 ## Commands
 

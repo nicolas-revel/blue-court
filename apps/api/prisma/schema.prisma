@@ -1,0 +1,21 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A tournament and its settings. Teams and phases are stored as the engine's JSON shapes.
+model Tournament {
+  id        String   @id @default(cuid())
+  name      String
+  teams     Json
+  phases    Json
+  /// Drawn once at creation; every draw of the engine derives from it.
+  seed      Int
+  createdAt DateTime @default(now())
+}
