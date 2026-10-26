@@ -28,8 +28,17 @@ Typical club format: pools in the morning, then level pools or a full placement 
 - **By bands**: the overall ranking across pools is cut into consecutive bands. Bands are as even as possible and never larger than the pool size, larger bands first (13 teams in pools of 4: 4, 3, 3, 3). Since bands are even, a band of a single team (which plays no match) only happens when a single team is left in the phase.
 - **Overall ranking across pools**: teams are ordered by their position in their pool, then teams at the same position are compared with the phase's tie-breakers. Head-to-head is skipped since they did not meet. Wins and ranking points are averaged per match played, so teams from pools of different sizes compare fairly; set and point ratios are used as is. Teams still level are listed by team id. A team's position is its line in its pool's standings, so two teams sharing a rank in a pool (level after every tie-breaker, listed by team id) take two consecutive positions.
 
+## Brackets
+
+- Teams enter a bracket in seed order, usually the overall ranking of the previous phase. The bracket is seeded so that seeds 1 and 2 can only meet in the final, seeds 1 to 4 in the semifinals, and so on.
+- When the number of teams is not a power of 2, the bracket is filled up to the next power of 2 with byes, given to the top seeds: a team facing a bye goes through without playing.
+- An elimination match needs a winner: a score that ends in a draw is refused.
+- A score is refused for a match that is not in the bracket, entered twice, or not playable yet (its teams are not known, or one side is a bye).
+- **Single elimination**: the loser is out. Teams knocked out in the same round share a place (two 3rd, four 5th...); there is no match for 3rd place.
+- **Consolation bracket** (optional): the teams that lost their first-round match play their own single elimination bracket.
+- **Full placement bracket**: after each round, winners play on for the top places and losers for the places below, until every team has a unique place. Byes only fill empty sides, so the N teams still get places 1 to N. Every team plays log2 of the bracket size matches at most (4 for 16 teams), exactly that many when the number of teams is a power of 2.
+
 ## Cross-cutting rules
 
-- When the number of teams is not a power of 2, the app suggests byes.
 - The organizer can manually correct any generated pool or bracket, for example by moving a team to another pool; the following phases are recomputed.
 - A pool that a move leaves empty is kept, so the organizer can fill it again.
