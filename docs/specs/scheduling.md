@@ -18,3 +18,7 @@ The organizer sets the courts, the start time, the estimated match duration and 
 ## Refereeing
 
 When the phase uses resting teams as referees, each match gets a team that plays no match at the same time and does not referee another one then. A team of the same pool is taken first, then the team that refereed the fewest matches so far. A match gets no referee when no team is free; matches that already started keep their referee. A bracket match only knows its teams once earlier results are in, so referees are best assigned again after each adjustment.
+
+## Refused inputs
+
+Scheduling refuses a call that cannot give a sound schedule: no court, a court listed twice or unknown, a duration or time that is not a number (match length, break, start, `now`, a removal or referee start time), a match listed twice in the matches or in the schedule, a match unknown to the schedule, a match between a team and itself, and matches that wait for each other in a cycle.
