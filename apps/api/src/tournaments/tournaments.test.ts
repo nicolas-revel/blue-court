@@ -7,12 +7,14 @@ import {
   type Phase,
   type Team,
 } from "@blue-court/engine";
-import type { INestApplication } from "@nestjs/common";
+import { BadRequestException, type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import fc from "fast-check";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
 import { PrismaService } from "../prisma.service.js";
+import { TournamentsService } from "./tournaments.service.js";
 
 interface Row {
   id: string;
@@ -112,6 +114,36 @@ describe("tournaments API", () => {
     expect((await post({ name: "x", teams: [null, null], phases: [null] })).status).toBe(400);
     expect((await post({ name: "x", teams: ["a", "b"], phases: [1] })).status).toBe(400);
     expect((await post({ name: "x", teams, phases: [{ id: "p" }] })).status).toBe(400);
+  });
+
+  it("answers any body with a stored tournament or a 400, never a crash", async () => {
+    const service = app.get(TournamentsService);
+    const team = fc.record({ id: fc.string(), name: fc.string() });
+    // A valid phase with one setting replaced by any JSON value.
+    const mutatedPhase = fc
+      .tuple(fc.constantFrom(...Object.keys(pools)), fc.jsonValue())
+      .map(([key, value]) => ({ ...pools, [key]: value }));
+    const body = fc.oneof(
+      fc.jsonValue(),
+      fc.record({
+        name: fc.string(),
+        teams: fc.array(fc.oneof(team, fc.jsonValue()), { maxLength: 6 }),
+        phases: fc.array(fc.oneof(fc.constant(pools), mutatedPhase, fc.jsonValue()), {
+          maxLength: 3,
+        }),
+      }),
+    );
+    await fc.assert(
+      fc.asyncProperty(body, async (input) => {
+        try {
+          const { seed } = await service.create(input);
+          expect(Number.isInteger(seed) && seed >= 0 && seed < 2 ** 31).toBe(true);
+        } catch (error) {
+          expect(error).toBeInstanceOf(BadRequestException);
+        }
+      }),
+      { numRuns: 300 },
+    );
   });
 
   it("answers 404 for an unknown tournament", async () => {

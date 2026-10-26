@@ -66,6 +66,9 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       socket.io-client:
         specifier: ^4.8.4
         version: 4.8.4
