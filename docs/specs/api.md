@@ -5,7 +5,7 @@ The web app and the venue screens talk to one HTTP API, plus a WebSocket for liv
 ## Tournaments
 
 - **Create** (`POST /tournaments`): the body gives the tournament's name, teams and phases, in the engine's shapes. The settings are checked first (see [match-rules.md](match-rules.md#configuration-validation)):
-  - every team and phase must be an object with an id, otherwise the request is refused as malformed;
+  - every team and phase must be an object with an id and the nested settings the engine reads, otherwise the request is refused as malformed (until #23, a missing nested setting is detected when the engine fails to read it);
   - settings that can never work are refused with every error found, each with its code, message and path;
   - a valid tournament is stored with a draw seed drawn at random by the API (a whole number from 0 to 2^31 - 1). Every draw of the tournament derives from that seed, so it is returned with the tournament and the same tournament always gives the same pools.
 - **List** (`GET /tournaments`): every tournament's id and name, newest first.
