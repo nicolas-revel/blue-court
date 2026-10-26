@@ -32,3 +32,4 @@ Typical club format: pools in the morning, then level pools or a full placement 
 
 - When the number of teams is not a power of 2, the app suggests byes.
 - The organizer can manually correct any generated pool or bracket, for example by moving a team to another pool; the following phases are recomputed.
+- A pool that a move leaves empty is kept, so the organizer can fill it again.

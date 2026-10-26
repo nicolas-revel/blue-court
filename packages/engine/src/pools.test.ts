@@ -102,6 +102,10 @@ describe("moveTeam", () => {
     ]);
   });
 
+  it("keeps a pool that a move empties, so the organizer can fill it again", () => {
+    expect(moveTeam([["A"], ["B"]], "A", 1)).toEqual([[], ["B", "A"]]);
+  });
+
   it("refuses an unknown team or pool", () => {
     expect(() => moveTeam(pools, "Z", 0)).toThrow("UNKNOWN_TEAM");
     expect(() => moveTeam(pools, "A", 2)).toThrow("UNKNOWN_POOL");
@@ -241,6 +245,46 @@ describe("pool properties", () => {
     );
   });
 
+  it("ranks every team across pools once, by position first, whatever the pool order", () => {
+    fc.assert(
+      fc.property(standingsArb, (standings) => {
+        const ranking = rankAcrossPools({ standings, tieBreakers: FFVB_TIE_BREAKERS });
+        expect(ranking.map((p) => p.team).sort()).toEqual(
+          standings
+            .flat()
+            .map((r) => r.team)
+            .sort(),
+        );
+        for (let i = 1; i < ranking.length; i++) {
+          expect(ranking[i - 1]?.position ?? 0).toBeLessThanOrEqual(ranking[i]?.position ?? 0);
+        }
+        const reversed = rankAcrossPools({
+          standings: [...standings].reverse(),
+          tieBreakers: FFVB_TIE_BREAKERS,
+        });
+        expect(reversed.map((p) => p.team)).toEqual(ranking.map((p) => p.team));
+      }),
+    );
+  });
+
+  it("orders teams at the same position by ranking points per match", () => {
+    fc.assert(
+      fc.property(standingsArb, (standings) => {
+        const ranking = rankAcrossPools({ standings, tieBreakers: FFVB_TIE_BREAKERS });
+        const rowOf = new Map(standings.flat().map((r) => [r.team, r]));
+        const perMatch = (team: string) => {
+          const r = rowOf.get(team);
+          return r === undefined || r.played === 0 ? 0 : r.rankingPoints / r.played;
+        };
+        for (let i = 1; i < ranking.length; i++) {
+          const [a, b] = [ranking[i - 1], ranking[i]];
+          if (a === undefined || b === undefined || a.position !== b.position) continue;
+          expect(perMatch(a.team)).toBeGreaterThanOrEqual(perMatch(b.team));
+        }
+      }),
+    );
+  });
+
   it("builds level pools from every team exactly once", () => {
     fc.assert(
       fc.property(standingsArb, fc.integer({ min: 2, max: 8 }), (standings, poolSize) => {
@@ -255,10 +299,12 @@ describe("pool properties", () => {
         });
         expect(byRank.flat().sort()).toEqual(all);
         // A level pool by rank never holds two teams from the same first pool.
-        for (const pool of byRank) {
+        byRank.forEach((pool, k) => {
           const origins = pool.map((team) => team.split("T")[0]);
           expect(new Set(origins).size).toBe(pool.length);
-        }
+          // Level pool k holds the teams at position k + 1 in their pool.
+          for (const team of pool) expect(Number(team.split("T")[1])).toBe(k);
+        });
         const bands = buildLevelPools({
           standings,
           tieBreakers: FFVB_TIE_BREAKERS,
