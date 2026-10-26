@@ -1,0 +1,86 @@
+import { randomInt } from "node:crypto";
+import { type Phase, type Team, validateTournament } from "@blue-court/engine";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "../generated/prisma/client.js";
+import { PrismaService } from "../prisma.service.js";
+import { TournamentsGateway } from "./tournaments.gateway.js";
+
+export interface NewTournament {
+  readonly name: string;
+  readonly teams: readonly Team[];
+  readonly phases: readonly Phase[];
+}
+
+export interface TournamentSummary {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface StoredTournament extends TournamentSummary, NewTournament {
+  readonly seed: number;
+}
+
+const isNewTournament = (body: unknown): body is NewTournament => {
+  if (typeof body !== "object" || body === null) return false;
+  const { name, teams, phases } = body as Record<string, unknown>;
+  return typeof name === "string" && Array.isArray(teams) && Array.isArray(phases);
+};
+
+const toStored = (row: {
+  id: string;
+  name: string;
+  teams: Prisma.JsonValue;
+  phases: Prisma.JsonValue;
+  seed: number;
+}): StoredTournament => ({
+  id: row.id,
+  name: row.name,
+  // Only tournaments checked by the engine are stored, so the JSON has the engine's shapes.
+  teams: row.teams as unknown as Team[],
+  phases: row.phases as unknown as Phase[],
+  seed: row.seed,
+});
+
+@Injectable()
+export class TournamentsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: TournamentsGateway,
+  ) {}
+
+  /** Checks the settings with the engine, then stores the tournament with its draw seed. */
+  async create(body: unknown): Promise<StoredTournament> {
+    if (!isNewTournament(body)) {
+      throw new BadRequestException({ message: "a tournament needs a name, teams and phases" });
+    }
+    const seed = randomInt(2 ** 31 - 1);
+    const validation = validateTournament({ ...body, id: "new", seed });
+    if (!validation.valid) {
+      throw new BadRequestException({ message: "invalid tournament", errors: validation.errors });
+    }
+    const row = await this.prisma.tournament.create({
+      data: {
+        name: body.name,
+        teams: body.teams as unknown as Prisma.InputJsonValue,
+        phases: body.phases as unknown as Prisma.InputJsonValue,
+        seed,
+      },
+    });
+    const tournament = toStored(row);
+    this.gateway.created({ id: tournament.id, name: tournament.name });
+    return tournament;
+  }
+
+  async list(): Promise<TournamentSummary[]> {
+    return this.prisma.tournament.findMany({
+      select: { id: true, name: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async get(id: string): Promise<StoredTournament> {
+    const row = await this.prisma.tournament.findUnique({ where: { id } });
+    if (row === null) throw new NotFoundException(`tournament ${id} does not exist`);
+    return toStored(row);
+  }
+}
