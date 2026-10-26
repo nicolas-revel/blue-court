@@ -62,8 +62,8 @@ function firstSlots(teams: readonly TeamId[]): BracketSlot[] {
 }
 
 /**
- * Plays `slots` (a power of 2) down to a winner. With `placeLosers`, the losers of each round
- * share the place after the teams still in; with `splitLosers`, they play on for the places below.
+ * Plays `slots` (a power of 2) down to a winner. Without `splitLosers`, the losers of each round
+ * share the place after the teams still in; with it, they play on for the places below.
  */
 function build(
   out: BracketMatch[],

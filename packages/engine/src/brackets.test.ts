@@ -201,6 +201,30 @@ describe("bracket properties", () => {
     );
   });
 
+  it("only lets the top 2^j seeds meet once 2^j teams are left, when favorites win", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 2, max: 32 }), (n) => {
+        const size = nextPowerOf2(n);
+        const { resolved } = play(
+          singleElimination({ teams: teams(n), consolation: false }),
+          favorites,
+        );
+        const seedOf = (team: string | null | undefined) =>
+          typeof team === "string" ? Number(team.slice(1)) : undefined;
+        for (const r of resolved) {
+          // In round r, `left` teams are still in: seed s meets seed left + 1 - s.
+          const left = size / 2 ** (r.match.round - 1);
+          const [home, away] = [seedOf(r.home), seedOf(r.away)];
+          if (home !== undefined && away !== undefined) expect(home + away).toBe(left + 1);
+          const alone = home ?? away;
+          if (alone !== undefined && (home === undefined || away === undefined)) {
+            expect(left + 1 - alone).toBeGreaterThan(n);
+          }
+        }
+      }),
+    );
+  });
+
   it("crowns one champion, places everyone, and gives the byes to the top seeds", () => {
     fc.assert(
       fc.property(bracketArb, fc.boolean(), ({ n, picks }, consolation) => {
@@ -220,10 +244,18 @@ describe("bracket properties", () => {
         const firstRoundLosers = resolved
           .filter((r) => r.match.bracket === "main" && r.match.round === 1)
           .map((r) => r.loser);
-        for (const r of resolved.filter((x) => x.match.bracket === "consolation")) {
-          for (const team of [r.home, r.away]) {
-            if (typeof team === "string" && r.match.round === 2) {
-              expect(firstRoundLosers).toContain(team);
+        const consolationMatches = resolved.filter((x) => x.match.bracket === "consolation");
+        const consolationIds = consolationMatches.map((r) => r.match.id);
+        for (const r of consolationMatches) {
+          if (r.match.round === 2) {
+            for (const team of [r.home, r.away]) {
+              if (typeof team === "string") expect(firstRoundLosers).toContain(team);
+            }
+          } else {
+            // Later rounds only take winners of consolation matches.
+            for (const slot of [r.match.home, r.match.away]) {
+              expect(slot.kind).toBe("winner");
+              if (slot.kind === "winner") expect(consolationIds).toContain(slot.match);
             }
           }
         }
