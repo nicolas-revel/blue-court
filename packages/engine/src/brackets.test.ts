@@ -134,6 +134,8 @@ describe("fullPlacement", () => {
   });
 });
 
+const bracketOf8 = () => singleElimination({ teams: teams(8), consolation: false });
+
 describe("resolveBracket", () => {
   const bracket = singleElimination({ teams: teams(2), consolation: false });
 
@@ -170,6 +172,37 @@ describe("resolveBracket", () => {
     );
     expect(() => resolveBracket(bracket, [match(win, "T3")], FFVB_MATCH_RULES)).toThrow(
       "WRONG_TEAMS",
+    );
+  });
+
+  it("refuses scores for unknown, duplicate or not yet playable matches", () => {
+    const eight = singleElimination({ teams: teams(8), consolation: false });
+    const entry = (id: string, home: string, away: string): Match => ({
+      id,
+      phaseId: "finals",
+      home,
+      away,
+      score: win,
+    });
+    expect(() => resolveBracket(eight, [entry("nope", "T1", "T8")], FFVB_MATCH_RULES)).toThrow(
+      "UNKNOWN_MATCH",
+    );
+    const first = entry("main:1:1", "T1", "T8");
+    expect(() => resolveBracket(eight, [first, first], FFVB_MATCH_RULES)).toThrow(
+      "DUPLICATE_MATCH",
+    );
+    expect(() => resolveBracket(eight, [entry("main:3:1", "T1", "T2")], FFVB_MATCH_RULES)).toThrow(
+      "NOT_PLAYABLE",
+    );
+    const bye = singleElimination({ teams: teams(3), consolation: false });
+    expect(() => resolveBracket(bye, [entry("main:1:1", "T1", "T2")], FFVB_MATCH_RULES)).toThrow(
+      "NOT_PLAYABLE",
+    );
+  });
+
+  it("refuses a bracket whose matches are out of order", () => {
+    expect(() => resolveBracket([...bracketOf8()].reverse(), [], FFVB_MATCH_RULES)).toThrow(
+      "INVALID_BRACKET",
     );
   });
 });

@@ -33,9 +33,10 @@ Typical club format: pools in the morning, then level pools or a full placement 
 - Teams enter a bracket in seed order, usually the overall ranking of the previous phase. The bracket is seeded so that seeds 1 and 2 can only meet in the final, seeds 1 to 4 in the semifinals, and so on.
 - When the number of teams is not a power of 2, the bracket is filled up to the next power of 2 with byes, given to the top seeds: a team facing a bye goes through without playing.
 - An elimination match needs a winner: a score that ends in a draw is refused.
+- A score is refused for a match that is not in the bracket, entered twice, or not playable yet (its teams are not known, or one side is a bye).
 - **Single elimination**: the loser is out. Teams knocked out in the same round share a place (two 3rd, four 5th...); there is no match for 3rd place.
 - **Consolation bracket** (optional): the teams that lost their first-round match play their own single elimination bracket.
-- **Full placement bracket**: after each round, winners play on for the top places and losers for the places below, until every team has a unique place. With byes, the byes take the last places, so the teams get places 1 to N. Every team plays log2 of the bracket size matches at most (4 for 16 teams), exactly that many when the number of teams is a power of 2.
+- **Full placement bracket**: after each round, winners play on for the top places and losers for the places below, until every team has a unique place. Byes only fill empty sides, so the N teams still get places 1 to N. Every team plays log2 of the bracket size matches at most (4 for 16 teams), exactly that many when the number of teams is a power of 2.
 
 ## Cross-cutting rules
 

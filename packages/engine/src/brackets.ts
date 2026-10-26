@@ -7,7 +7,11 @@ export type BracketErrorCode =
   | "DUPLICATE_TEAM"
   | "WRONG_TEAMS"
   | "INVALID_SCORE"
-  | "NO_WINNER";
+  | "NO_WINNER"
+  | "UNKNOWN_MATCH"
+  | "DUPLICATE_MATCH"
+  | "NOT_PLAYABLE"
+  | "INVALID_BRACKET";
 
 /** Thrown when a bracket cannot be built or advanced. */
 export class BracketError extends EngineError<BracketErrorCode> {}
@@ -163,12 +167,31 @@ export function resolveBracket(
   played: readonly Match[],
   rules: MatchRules,
 ): ResolvedBracketMatch[] {
-  const scores = new Map(played.map((m) => [m.id, m]));
+  const ids = new Set(bracket.map((m) => m.id));
+  const scores = new Map<string, Match>();
+  for (const m of played) {
+    if (!ids.has(m.id))
+      throw new BracketError("UNKNOWN_MATCH", `match ${m.id} is not in the bracket`);
+    if (scores.has(m.id))
+      throw new BracketError("DUPLICATE_MATCH", `match ${m.id} is entered twice`);
+    scores.set(m.id, m);
+  }
   const resolved = new Map<string, ResolvedBracketMatch>();
   const out: ResolvedBracketMatch[] = [];
   const record = (entry: ResolvedBracketMatch) => {
     resolved.set(entry.match.id, entry);
     out.push(entry);
+  };
+  // Matches come in play order: a side can only come from a match listed before it.
+  const earlier = (id: string) => {
+    const match = resolved.get(id);
+    if (match === undefined) {
+      throw new BracketError(
+        "INVALID_BRACKET",
+        `match ${id} must come before the matches it feeds`,
+      );
+    }
+    return match;
   };
   const teamOf = (slot: BracketSlot): TeamId | null | undefined => {
     switch (slot.kind) {
@@ -177,15 +200,19 @@ export function resolveBracket(
       case "bye":
         return null;
       case "winner":
-        return resolved.get(slot.match)?.winner;
+        return earlier(slot.match).winner;
       case "loser":
-        return resolved.get(slot.match)?.loser;
+        return earlier(slot.match).loser;
     }
   };
   for (const match of bracket) {
     const home = teamOf(match.home);
     const away = teamOf(match.away);
     const base = { match, home, away };
+    const playable = typeof home === "string" && typeof away === "string";
+    if (!playable && scores.get(match.id)?.score !== undefined) {
+      throw new BracketError("NOT_PLAYABLE", `match ${match.id} cannot be played yet`);
+    }
     if (home === undefined || away === undefined) {
       // Waiting on an earlier match; a side known to be empty still cannot decide alone.
       record({ ...base, winner: undefined, loser: undefined, playable: false });
