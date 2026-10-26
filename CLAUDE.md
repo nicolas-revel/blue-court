@@ -26,7 +26,7 @@ A configurable volleyball tournament manager. Public project, built with an AI-a
 - Everything is configurable: no hard-coded club rule. FFVB rules are defaults.
 - The engine is a library of pure functions, tested with examples and property-based tests (`engine-tests` skill).
 - Everything in the repo is in English (code, docs, specs, commits). Only the product UI is in French, through translations.
-- A convention a tool can check becomes a rule (Biome, GritQL plugin, test), not a line in this file: `lint-rule` skill. Biome already enforces `.js` import extensions, no non-null `!`, and engine purity (no external import, no Node, no console, no randomness or clock).
+- A convention a tool can check becomes a rule (Biome, GritQL plugin, test), not a line in this file: `lint-rule` skill. Biome already enforces `.js` import extensions (outside `apps/web`, where Next.js resolves imports), no non-null `!`, and engine purity (no external import, no Node, no console, no randomness or clock).
 - New feature: `grill` then `write-spec` before code.
 - One PR = one issue, following the `implement-issue` skill. `pnpm check` must pass before pushing.
 
