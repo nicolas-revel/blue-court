@@ -110,6 +110,7 @@ describe("tournaments API", () => {
   it("refuses a body that is not a tournament", async () => {
     expect((await post({ name: 3 })).status).toBe(400);
     expect((await post({ name: "x", teams: [null, null], phases: [null] })).status).toBe(400);
+    expect((await post({ name: "x", teams: ["a", "b"], phases: [1] })).status).toBe(400);
     expect((await post({ name: "x", teams, phases: [{ id: "p" }] })).status).toBe(400);
   });
 

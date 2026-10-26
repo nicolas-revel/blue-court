@@ -26,11 +26,24 @@ export interface StoredTournament extends TournamentSummary, NewTournament {
   readonly seed: number;
 }
 
+/** Teams and phases are objects with an id; the engine checks the rest of their settings. */
+const isListWithIds = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.every(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as { id?: unknown }).id === "string",
+  );
+
 const isNewTournament = (body: unknown): body is NewTournament => {
   if (typeof body !== "object" || body === null) return false;
   const { name, teams, phases } = body as Record<string, unknown>;
-  return typeof name === "string" && Array.isArray(teams) && Array.isArray(phases);
+  return typeof name === "string" && isListWithIds(teams) && isListWithIds(phases);
 };
+
+/** Seeds fit the database's 32-bit integer column; `randomInt` excludes this bound. */
+const SEED_LIMIT = 2 ** 31;
 
 /** The engine trusts the shapes it is given, so a malformed body makes it throw. */
 const validate = (tournament: Tournament): ConfigValidation => {
@@ -72,7 +85,7 @@ export class TournamentsService {
     if (!isNewTournament(body)) {
       throw new BadRequestException({ message: "a tournament needs a name, teams and phases" });
     }
-    const seed = randomInt(2 ** 31 - 1);
+    const seed = randomInt(SEED_LIMIT);
     const validation = validate({ ...body, id: "new", seed });
     if (!validation.valid) {
       throw new BadRequestException({ message: "invalid tournament", errors: validation.errors });
