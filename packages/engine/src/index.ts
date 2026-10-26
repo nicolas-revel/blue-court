@@ -5,6 +5,7 @@ export {
   type BracketMatch,
   type BracketSlot,
   bracketPlaces,
+  doubleElimination,
   fullPlacement,
   type ResolvedBracketMatch,
   resolveBracket,

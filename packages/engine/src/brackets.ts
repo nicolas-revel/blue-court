@@ -34,6 +34,11 @@ export interface BracketMatch {
   readonly away: BracketSlot;
   /** Final places this match gives, when it decides any. */
   readonly places?: { readonly winner?: number; readonly loser?: number };
+  /**
+   * Played only when that earlier match was won by that side (a grand final reset); otherwise it
+   * is skipped and keeps that match's winner and loser.
+   */
+  readonly onlyIf?: { readonly match: string; readonly wonBy: "home" | "away" };
 }
 
 export interface BracketInput {
@@ -145,6 +150,105 @@ export function fullPlacement(input: BracketInput): BracketMatch[] {
 }
 
 /**
+ * Double elimination: a team is out after its second loss. Winners bracket losers drop into the
+ * losers bracket in reverse order, so that the second-round losers never meet a team they already
+ * played (except with 4 slots, where that round is the losers final; later rematches cannot always
+ * be avoided). The winners bracket champion meets the losers bracket champion in the grand final;
+ * with a reset, a second final is played if the losers bracket champion wins the first.
+ */
+export function doubleElimination(
+  input: BracketInput & { readonly grandFinalReset: boolean },
+): BracketMatch[] {
+  const slots = firstSlots(input.teams);
+  const size = slots.length;
+  const out: BracketMatch[] = [];
+  const slot = (kind: "winner" | "loser", match: BracketMatch): BracketSlot => ({
+    kind,
+    match: match.id,
+  });
+
+  const winnersRounds: BracketMatch[][] = [];
+  let current = slots;
+  for (let round = 1; current.length > 1; round += 1) {
+    const matches: BracketMatch[] = [];
+    for (let i = 0; i < current.length; i += 2) {
+      matches.push({
+        id: `winners:${round}:${i / 2 + 1}`,
+        bracket: "winners",
+        round,
+        home: current[i] ?? { kind: "bye" },
+        away: current[i + 1] ?? { kind: "bye" },
+      });
+    }
+    out.push(...matches);
+    winnersRounds.push(matches);
+    current = matches.map((m) => slot("winner", m));
+  }
+  const winnersFinal = winnersRounds.at(-1)?.[0];
+  if (winnersFinal === undefined) throw new Error("unreachable: empty bracket");
+
+  // Losers bracket: odd rounds pair the survivors, even rounds take the next winners bracket losers.
+  let survivors = (winnersRounds[0] ?? []).map((m) => slot("loser", m));
+  let eliminated = 0;
+  let losersRoundNo = 1;
+  const addLosersRound = (pairs: [BracketSlot, BracketSlot][]) => {
+    eliminated += pairs.length;
+    const matches = pairs.map(([home, away], i) => ({
+      id: `losers:${losersRoundNo}:${i + 1}`,
+      bracket: "losers",
+      // The id counts losers bracket rounds; `round` counts the whole bracket, one round later.
+      round: losersRoundNo + 1,
+      home,
+      away,
+      places: { loser: size - eliminated + 1 },
+    }));
+    out.push(...matches);
+    losersRoundNo += 1;
+    survivors = matches.map((m) => slot("winner", m));
+  };
+  for (const dropping of winnersRounds.slice(1)) {
+    if (survivors.length > 1) {
+      const pairs: [BracketSlot, BracketSlot][] = [];
+      for (let i = 0; i < survivors.length; i += 2) {
+        pairs.push([survivors[i] ?? { kind: "bye" }, survivors[i + 1] ?? { kind: "bye" }]);
+      }
+      addLosersRound(pairs);
+    }
+    const reversed = [...dropping].reverse();
+    addLosersRound(
+      survivors.map((s, i): [BracketSlot, BracketSlot] => {
+        const drop = reversed[i];
+        return [s, drop === undefined ? { kind: "bye" } : slot("loser", drop)];
+      }),
+    );
+  }
+  const losersChampion = survivors[0] ?? slot("loser", winnersFinal);
+
+  const finalRound = Math.max(winnersRounds.length, losersRoundNo) + 1;
+  const final: BracketMatch = {
+    id: "final:1:1",
+    bracket: "final",
+    round: finalRound,
+    home: slot("winner", winnersFinal),
+    away: losersChampion,
+    ...(input.grandFinalReset ? {} : { places: { winner: 1, loser: 2 } }),
+  };
+  out.push(final);
+  if (input.grandFinalReset) {
+    out.push({
+      id: "final:2:1",
+      bracket: "final",
+      round: finalRound + 1,
+      home: final.home,
+      away: final.away,
+      places: { winner: 1, loser: 2 },
+      onlyIf: { match: final.id, wonBy: "away" },
+    });
+  }
+  return out;
+}
+
+/**
  * A bracket match once earlier results are known. A team is `undefined` while it depends on an
  * unplayed match, and `null` when there is none (a bye, or the loser of a bye).
  */
@@ -209,11 +313,19 @@ export function resolveBracket(
     const home = teamOf(match.home);
     const away = teamOf(match.away);
     const base = { match, home, away };
-    const playable = typeof home === "string" && typeof away === "string";
+    const condition = match.onlyIf && earlier(match.onlyIf.match);
+    const wonBy = condition && (condition.winner === condition.home ? "home" : "away");
+    const skipped =
+      condition !== undefined &&
+      (typeof condition.winner !== "string" || wonBy !== match.onlyIf?.wonBy);
+    const playable = !skipped && typeof home === "string" && typeof away === "string";
     if (!playable && scores.get(match.id)?.score !== undefined) {
       throw new BracketError("NOT_PLAYABLE", `match ${match.id} cannot be played yet`);
     }
-    if (home === undefined || away === undefined) {
+    if (condition !== undefined && skipped) {
+      // Not played: waiting on the deciding match, or keeping its result.
+      record({ ...base, winner: condition.winner, loser: condition.loser, playable: false });
+    } else if (home === undefined || away === undefined) {
       // Waiting on an earlier match; a side known to be empty still cannot decide alone.
       record({ ...base, winner: undefined, loser: undefined, playable: false });
     } else if (home === null || away === null) {
