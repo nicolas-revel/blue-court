@@ -184,6 +184,10 @@ export function adjustSchedule(input: {
 }): ScheduledMatch[] {
   const { schedule, settings, now } = input;
   validateSettings(settings);
+  const times = [now, ...input.actual.flatMap((a) => [a.start, a.end ?? a.start])];
+  if (!times.every(Number.isFinite)) {
+    throw new ScheduleError("INVALID_DURATION", "now and real times must be numbers");
+  }
   const byId = indexMatches(input.matches);
   const { courts, matchMinutes, breakMinutes } = settings;
   const planned = new Map(schedule.map((entry) => [entry.match, entry]));
@@ -224,13 +228,18 @@ export function adjustSchedule(input: {
       place(entry, times.start, times.end ?? Math.max(times.start + matchMinutes, now));
     }
   }
-  for (const entry of ordered) {
-    if (real.has(entry.match)) continue;
+  // Planned order, except that a match waits until the matches it waits for are placed.
+  let pending = ordered.filter((entry) => !real.has(entry.match));
+  while (pending.length > 0) {
+    const entry = pending.find((e) =>
+      (byId.get(e.match)?.after ?? []).every((id) => ends.has(id) || !planned.has(id)),
+    );
+    if (entry === undefined) throw new ScheduleError("CYCLE", "some matches wait for each other");
+    pending = pending.filter((e) => e !== entry);
     const match = byId.get(entry.match);
-    const waits = (match?.after ?? []).map((id) => {
-      const end = ends.get(id) ?? planned.get(id)?.end;
-      return end === undefined ? Number.NEGATIVE_INFINITY : end + breakMinutes;
-    });
+    const waits = (match?.after ?? []).map(
+      (id) => (ends.get(id) ?? Number.NEGATIVE_INFINITY) + breakMinutes,
+    );
     const start = Math.max(
       now,
       input.earlyStart ? Number.NEGATIVE_INFINITY : entry.start,
@@ -251,7 +260,14 @@ export function moveMatch(
   schedule: readonly ScheduledMatch[],
   match: string,
   to: { readonly court: string; readonly start: number },
+  courts: readonly string[],
 ): ScheduledMatch[] {
+  if (!courts.includes(to.court)) {
+    throw new ScheduleError("UNKNOWN_COURT", `court ${to.court} is not in the courts`);
+  }
+  if (!Number.isFinite(to.start)) {
+    throw new ScheduleError("INVALID_DURATION", "the new start must be a number");
+  }
   const entry = schedule.find((e) => e.match === match);
   if (entry === undefined) {
     throw new ScheduleError("UNKNOWN_MATCH", `match ${match} is not in the schedule`);

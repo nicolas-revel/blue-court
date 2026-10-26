@@ -196,15 +196,44 @@ describe("moveMatch and removeCourt", () => {
   it("moves a match to another court and time", () => {
     const last = plan.at(-1);
     if (last === undefined) throw new Error("empty plan");
-    const moved = moveMatch(plan, last.match, { court: "C3", start: 600 });
+    const moved = moveMatch(plan, last.match, { court: "C3", start: 600 }, ["C1", "C2", "C3"]);
     expect(moved.find((e) => e.match === last.match)).toMatchObject({
       court: "C3",
       start: 600,
       end: 620,
     });
-    expect(() => moveMatch(plan, "x", { court: "C1", start: 0 })).toThrow(
+    const courts = ["C1", "C2"];
+    expect(() => moveMatch(plan, "x", { court: "C1", start: 0 }, courts)).toThrow(
       expect.objectContaining({ code: "UNKNOWN_MATCH" }),
     );
+    expect(() => moveMatch(plan, last.match, { court: "C9", start: 0 }, courts)).toThrow(
+      expect.objectContaining({ code: "UNKNOWN_COURT" }),
+    );
+    expect(() => moveMatch(plan, last.match, { court: "C1", start: Number.NaN }, courts)).toThrow(
+      expect.objectContaining({ code: "INVALID_DURATION" }),
+    );
+  });
+
+  it("keeps a bracket match after its feeders when a feeder is moved later", () => {
+    const matches: SchedulableMatch[] = [
+      { id: "semi1", teams: ["T1", "T4"] },
+      { id: "semi2", teams: ["T2", "T3"] },
+      { id: "final", teams: [], after: ["semi1", "semi2"] },
+    ];
+    const plan = planSchedule({ matches, settings: settings(2) });
+    // semi2 now comes after the final on court 1, and semi1 runs late.
+    const moved = moveMatch(plan, "semi2", { court: "C1", start: 600 }, ["C1", "C2"]);
+    const adjusted = adjustSchedule({
+      schedule: moved,
+      matches,
+      settings: settings(2),
+      actual: [{ match: "semi1", start: 540, end: 650 }],
+      now: 650,
+      earlyStart: false,
+    });
+    const at = (id: string) => adjusted.find((e) => e.match === id);
+    expect(at("semi2")).toMatchObject({ court: "C1", start: 655, end: 675 });
+    expect(at("final")?.start).toBe(680);
   });
 
   it("spreads the matches of a removed court over the others", () => {
