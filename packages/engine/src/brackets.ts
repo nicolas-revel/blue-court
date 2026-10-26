@@ -151,10 +151,10 @@ export function fullPlacement(input: BracketInput): BracketMatch[] {
 
 /**
  * Double elimination: a team is out after its second loss. Winners bracket losers drop into the
- * losers bracket, in reverse order so that the second-round losers never meet a team they already
- * played (later rematches cannot always be avoided). The
- * winners bracket champion meets the losers bracket champion in the grand final; with a reset,
- * a second final is played if the losers bracket champion wins the first.
+ * losers bracket in reverse order, so that the second-round losers never meet a team they already
+ * played (except with 4 slots, where that round is the losers final; later rematches cannot always
+ * be avoided). The winners bracket champion meets the losers bracket champion in the grand final;
+ * with a reset, a second final is played if the losers bracket champion wins the first.
  */
 export function doubleElimination(
   input: BracketInput & { readonly grandFinalReset: boolean },
