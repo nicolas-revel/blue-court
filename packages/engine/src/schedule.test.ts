@@ -97,6 +97,13 @@ describe("planSchedule", () => {
     ]);
   });
 
+  it("handles no match and a match whose teams are not known yet", () => {
+    expect(planSchedule({ matches: [], settings: settings(2) })).toEqual([]);
+    expect(planSchedule({ matches: [{ id: "final", teams: [] }], settings: settings(2) })).toEqual([
+      { match: "final", court: "C1", start: 540, end: 560 },
+    ]);
+  });
+
   it("refuses bad settings and bad matches", () => {
     const matches = pool(teams(3), "A");
     const fails = (code: string, run: () => unknown) =>
@@ -515,6 +522,43 @@ describe("schedule properties", () => {
           expectConsistent(matches, adjusted, s.breakMinutes);
         },
       ),
+    );
+  });
+
+  it("picks referees from the pool first, then the least used, and keeps earlier ones", () => {
+    fc.assert(
+      fc.property(scheduleArb, fc.integer({ min: 0, max: 300 }), (input, offset) => {
+        const matches = poolsOf(input.pools);
+        const s = settings(input.courts, { breakMinutes: input.breakMinutes });
+        const first = assignReferees({ schedule: planSchedule({ matches, settings: s }), matches });
+        const from = s.start + offset;
+        const schedule = assignReferees({ schedule: first, matches, from });
+        const allTeams = [...new Set(matches.flatMap((m) => m.teams))];
+        const groupOf = (team: string) => matches.find((m) => m.teams.includes(team))?.group;
+        const ordered = [...schedule].sort((a, b) => a.start - b.start);
+        for (const [i, entry] of ordered.entries()) {
+          if (entry.start < from) {
+            expect(entry).toEqual(first.find((e) => e.match === entry.match));
+            continue;
+          }
+          const done = ordered.slice(0, i);
+          const busy = new Set(
+            ordered.filter((o) => overlap(o, entry)).flatMap((o) => teamsOf(matches, o)),
+          );
+          for (const o of done) if (overlap(o, entry) && o.referee) busy.add(o.referee);
+          const free = allTeams.filter((t) => !busy.has(t));
+          if (entry.referee === undefined) {
+            expect(free).toEqual([]);
+            continue;
+          }
+          const group = matches.find((m) => m.id === entry.match)?.group;
+          const sameGroup = free.filter((t) => groupOf(t) === group);
+          const tier = sameGroup.length > 0 ? sameGroup : free;
+          expect(tier).toContain(entry.referee);
+          const duties = (team: string) => done.filter((o) => o.referee === team).length;
+          for (const t of tier) expect(duties(t)).toBeGreaterThanOrEqual(duties(entry.referee));
+        }
+      }),
     );
   });
 });
