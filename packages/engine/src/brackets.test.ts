@@ -368,12 +368,15 @@ describe("bracket properties", () => {
         const places = bracketPlaces(resolved);
         expect(places.map((p) => p.team).sort()).toEqual(teams(n).sort());
         expect(places.filter((p) => p.place === 1)).toHaveLength(1);
-        for (const p of places) expect(p.place).toBeLessThanOrEqual(n);
+        // Shared places leave no gap: a place is one more than the teams ranked above it.
+        for (const p of places) {
+          expect(p.place).toBe(places.filter((q) => q.place < p.place).length + 1);
+        }
         const losses = (team: string) =>
           resolved.filter((r) => r.playable && r.loser === team).length;
         for (const { team, place } of places) {
           if (place === 1) expect(losses(team)).toBeLessThanOrEqual(1);
-          else if (place === 2 && !grandFinalReset) expect(losses(team)).toBeGreaterThanOrEqual(1);
+          else if (place === 2 && !grandFinalReset) expect([1, 2]).toContain(losses(team));
           else expect(losses(team)).toBe(2);
         }
         // A reset is only played when the losers bracket champion won the first final.
