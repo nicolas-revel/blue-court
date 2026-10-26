@@ -1,3 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Dependencies allowed to run install scripts. Prisma downloads its schema engine (migrations).
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - prisma
