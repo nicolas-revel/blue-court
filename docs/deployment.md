@@ -34,4 +34,4 @@ tournois.example.fr {
 
 In `.env` on the server, set a strong `POSTGRES_PASSWORD` made of letters and digits only, as it goes into the database URL (`openssl rand -hex 24`) (Compose refuses to start without `.env`, and Postgres without a password), set `WEB_ORIGIN` to the public address, and change the `*_PORT` values if another service already uses them.
 
-The API has no authentication yet: anyone who reaches it can create tournaments. Keep it off the public internet until accounts land (#22).
+The API has no authentication yet: anyone who reaches it can create tournaments. Keep it off the public internet until accounts land (#22): until then, leave the `/api/*` and `/socket.io/*` blocks out of the Caddy config so that only the web app is public.
