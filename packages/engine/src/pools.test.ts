@@ -125,6 +125,40 @@ describe("rankAcrossPools", () => {
     expect(ranking[0]).toEqual({ team: "F", pool: 1, position: 1 });
   });
 
+  it("uses the listed order inside a pool, so teams sharing a rank keep distinct positions", () => {
+    // B and C share 2nd place in pool 1; the standings list them by id, B first.
+    const standings = [
+      [
+        { ...row("A", 6), rank: 1 },
+        { ...row("B", 3), rank: 2 },
+        { ...row("C", 3), rank: 2 },
+      ],
+      [
+        { ...row("D", 6), rank: 1 },
+        { ...row("E", 4), rank: 2 },
+        { ...row("F", 0), rank: 3 },
+      ],
+    ];
+    const ranking = rankAcrossPools({ standings, tieBreakers: FFVB_TIE_BREAKERS });
+    expect(ranking.map((p) => [p.team, p.position])).toEqual([
+      ["A", 1],
+      ["D", 1],
+      ["E", 2],
+      ["B", 2],
+      ["C", 3],
+      ["F", 3],
+    ]);
+  });
+
+  it("refuses a team listed in two pools", () => {
+    expect(() =>
+      rankAcrossPools({
+        standings: [[row("A", 3)], [row("A", 3)]],
+        tieBreakers: FFVB_TIE_BREAKERS,
+      }),
+    ).toThrow("DUPLICATE_TEAM");
+  });
+
   it("needs a seed for a random draw", () => {
     expect(() => rankAcrossPools({ standings: [[row("A", 3)]], tieBreakers: ["random"] })).toThrow(
       "SEED_REQUIRED",
