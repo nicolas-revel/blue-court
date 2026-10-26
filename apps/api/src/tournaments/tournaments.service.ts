@@ -36,8 +36,12 @@ const isNewTournament = (body: unknown): body is NewTournament => {
 const validate = (tournament: Tournament): ConfigValidation => {
   try {
     return validateTournament(tournament);
-  } catch {
-    throw new BadRequestException({ message: "a team or phase is malformed" });
+  } catch (error) {
+    // Reading a field of a missing value; anything else is a real bug and stays a 500.
+    if (error instanceof TypeError) {
+      throw new BadRequestException({ message: "a team or phase is malformed" });
+    }
+    throw error;
   }
 };
 

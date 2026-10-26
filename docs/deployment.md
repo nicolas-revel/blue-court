@@ -33,3 +33,5 @@ tournois.example.fr {
 ```
 
 In `.env` on the server, set a strong `POSTGRES_PASSWORD` (Compose refuses to start without `.env`, and Postgres without a password), set `WEB_ORIGIN` to the public address, and change the `*_PORT` values if another service already uses them.
+
+The API has no authentication yet: anyone who reaches it can create tournaments. Keep it off the public internet until accounts land (#22).
