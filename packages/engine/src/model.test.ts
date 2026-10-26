@@ -14,7 +14,7 @@ describe("tournament model", () => {
     const morning: Phase = {
       id: "morning",
       name: "Morning pools",
-      format: { kind: "pools", poolCount: 2 },
+      format: { kind: "pools", poolCount: 2, draw: "seeded" },
       matchRules: {
         kind: "fixedSets",
         sets: 2,
@@ -29,7 +29,7 @@ describe("tournament model", () => {
     const afternoon: Phase = {
       id: "afternoon",
       name: "Level pools",
-      format: { kind: "levelPools", poolSize: 4 },
+      format: { kind: "levelPools", grouping: { kind: "bands", poolSize: 4 } },
       matchRules: FFVB_MATCH_RULES,
       rankingPoints: FFVB_RANKING_POINTS,
       tieBreakers: ["wins", "setRatio", "pointRatio", "headToHead"],
@@ -41,6 +41,7 @@ describe("tournament model", () => {
       name: "Christmas tournament",
       teams,
       phases: [morning, afternoon],
+      seed: 20261224,
     };
 
     expect(tournament.phases.map((p) => p.format.kind)).toEqual(["pools", "levelPools"]);
@@ -115,7 +116,7 @@ describe("tournament model", () => {
   });
 
   it("builds matches on the existing round-robin pairing", () => {
-    expectTypeOf<Match>().toMatchTypeOf<Pairing<string>>();
+    expectTypeOf<Match>().toExtend<Pairing<string>>();
   });
 });
 

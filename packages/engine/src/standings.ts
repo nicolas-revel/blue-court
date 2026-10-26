@@ -1,4 +1,6 @@
+import { EngineError } from "./errors.js";
 import type { Match, Phase, SetScore, TeamId, TieBreaker } from "./model.js";
+import { byTeamId, drawKey } from "./random.js";
 import { isDecidingSet, type Side, setWinner, validateScore } from "./score.js";
 
 export type StandingsErrorCode =
@@ -8,15 +10,8 @@ export type StandingsErrorCode =
   | "DUPLICATE_TEAM"
   | "SEED_REQUIRED";
 
-/** Thrown when the standings cannot be computed; `code` is stable, the message is English. */
-export class StandingsError extends Error {
-  readonly code: StandingsErrorCode;
-  constructor(code: StandingsErrorCode, message: string) {
-    super(`${code}: ${message}`);
-    this.name = "StandingsError";
-    this.code = code;
-  }
-}
+/** Thrown when the standings cannot be computed. */
+export class StandingsError extends EngineError<StandingsErrorCode> {}
 
 export interface StandingRow {
   readonly team: TeamId;
@@ -164,15 +159,30 @@ function sumLines(lines: readonly MatchLine[]): Totals {
 const ratio = (won: number, lost: number) =>
   lost === 0 ? (won === 0 ? 0 : Number.POSITIVE_INFINITY) : won / lost;
 
-/** Deterministic 32-bit hash of a team for a seeded draw (FNV-1a mixed with the seed). */
-function drawKey(seed: number, team: TeamId): number {
-  let hash = (2166136261 ^ seed) >>> 0;
-  for (let i = 0; i < team.length; i++) {
-    hash ^= team.charCodeAt(i);
-    hash = Math.imul(hash, 16777619) >>> 0;
+/**
+ * Value of a team's row for a tie-breaker that only needs the row (every one but head-to-head,
+ * which needs the matches); higher is better.
+ */
+export function rowValue(
+  criterion: Exclude<TieBreaker, "headToHead">,
+  row: Pick<
+    StandingRow,
+    "team" | "wins" | "rankingPoints" | "setsWon" | "setsLost" | "pointsWon" | "pointsLost"
+  >,
+  seed: number | undefined,
+): number {
+  switch (criterion) {
+    case "wins":
+      return row.wins;
+    case "rankingPoints":
+      return row.rankingPoints;
+    case "setRatio":
+      return ratio(row.setsWon, row.setsLost);
+    case "pointRatio":
+      return ratio(row.pointsWon, row.pointsLost);
+    case "random":
+      return drawKey(seed ?? 0, row.team);
   }
-  hash ^= hash >>> 15;
-  return Math.imul(hash, 2246822507) >>> 0;
 }
 
 /**
@@ -208,25 +218,12 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
   const totals = new Map(teams.map((team) => [team, sumLines(linesOf(team))]));
   const get = (team: TeamId) => totals.get(team) ?? sumLines([]);
 
-  const key = (criterion: TieBreaker, team: TeamId, group: readonly TeamId[]): number => {
-    const t = get(team);
-    switch (criterion) {
-      case "wins":
-        return t.wins;
-      case "rankingPoints":
-        return t.rankingPoints;
-      case "setRatio":
-        return ratio(t.setsWon, t.setsLost);
-      case "pointRatio":
-        return ratio(t.pointsWon, t.pointsLost);
-      case "headToHead":
-        return linesOf(team)
+  const key = (criterion: TieBreaker, team: TeamId, group: readonly TeamId[]): number =>
+    criterion === "headToHead"
+      ? linesOf(team)
           .filter((l) => group.includes(l.opponent))
-          .reduce((sum, l) => sum + l.rankingPoints, 0);
-      case "random":
-        return drawKey(seed ?? 0, team);
-    }
-  };
+          .reduce((sum, l) => sum + l.rankingPoints, 0)
+      : rowValue(criterion, { team, ...get(team) }, seed);
 
   /** Splits a level group into ordered subgroups, best first, then breaks each further. */
   const rankGroup = (group: readonly TeamId[], index: number): TeamId[][] => {
@@ -240,11 +237,10 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
   };
 
   // Teams sharing a rank are listed by id, so the rows never depend on the input order.
-  const byId = (a: TeamId, b: TeamId) => (a < b ? -1 : a > b ? 1 : 0);
   const rows: StandingRow[] = [];
   for (const group of rankGroup(teams, 0)) {
     const rank = rows.length + 1;
-    for (const team of [...group].sort(byId)) rows.push({ team, rank, ...get(team) });
+    for (const team of [...group].sort(byTeamId)) rows.push({ team, rank, ...get(team) });
   }
   return rows;
 }

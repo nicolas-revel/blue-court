@@ -70,10 +70,20 @@ export type TieBreaker =
   /** Seeded draw, so the standings are reproducible; the seed is required. */
   | "random";
 
+/** How teams are split into the first pools: seeds spread in a snake, or a full random draw. */
+export type PoolDraw = "seeded" | "random";
+
+/** How level pools are rebuilt from the previous pools. */
+export type LevelPoolGrouping =
+  /** All 1st-placed teams together, all 2nd-placed together, and so on. */
+  | { readonly kind: "byRank" }
+  /** Consecutive bands of the overall ranking, at most `poolSize` teams each. */
+  | { readonly kind: "bands"; readonly poolSize: number };
+
 export type PhaseFormat =
-  | { readonly kind: "pools"; readonly poolCount: number }
+  | { readonly kind: "pools"; readonly poolCount: number; readonly draw: PoolDraw }
   /** Pools rebuilt from the previous phase's ranking. */
-  | { readonly kind: "levelPools"; readonly poolSize: number }
+  | { readonly kind: "levelPools"; readonly grouping: LevelPoolGrouping }
   | { readonly kind: "singleElimination"; readonly consolation: boolean }
   | { readonly kind: "doubleElimination"; readonly grandFinalReset: boolean }
   /** Every team plays log2(N) matches and gets a unique place. */
@@ -110,6 +120,8 @@ export interface Tournament {
   readonly name: string;
   readonly teams: readonly Team[];
   readonly phases: readonly Phase[];
+  /** Drawn once when the tournament is created; every draw (pools, tie-breaks) derives from it. */
+  readonly seed: number;
 }
 
 export interface SetScore {
