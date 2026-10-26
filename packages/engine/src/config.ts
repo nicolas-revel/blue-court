@@ -134,39 +134,57 @@ function checkQualification(
   switch (qualification.kind) {
     case "all":
       return teams;
-    case "topOverall":
-      if (!(isCount(qualification.count, 1) && qualification.count <= teams)) {
+    case "topOverall": {
+      const { count } = qualification;
+      const valid = isCount(count, 1) && count <= teams;
+      if (!valid) {
         report("QUALIFICATION_COUNT", `between 1 and the ${teams} teams can qualify`, [
           ...path,
           "count",
         ]);
       }
-      return Math.min(qualification.count, teams);
+      // After an invalid count, the next phases are checked as if every team went on.
+      return valid ? count : teams;
+    }
     case "topPerPool": {
       // Level pools only know their number of pools once the previous ranking is in.
-      const pools = poolsOf(format);
+      const known = poolsOf(format);
+      const pools = known !== undefined && isCount(known, 1) && known <= teams ? known : undefined;
       const { count, bestAtRank } = qualification;
-      const extra = bestAtRank?.count ?? 0;
-      if (!isCount(count, 1) || (pools !== undefined && count * pools + extra > teams)) {
-        report("QUALIFICATION_COUNT", `at most the ${teams} teams can qualify`, [...path, "count"]);
-      }
+      let valid = isCount(count, 1);
       if (bestAtRank !== undefined) {
-        if (!(isCount(bestAtRank.rank, 1) && bestAtRank.rank > count)) {
+        // Pools differ by at most one team, so the largest holds ceil(teams / pools).
+        const largest = pools === undefined ? undefined : Math.ceil(teams / pools);
+        const rank = bestAtRank.rank;
+        if (!(isCount(rank, 1) && rank > count && (largest === undefined || rank <= largest))) {
+          valid = false;
           report("QUALIFICATION_RANK", "the best teams are taken at a rank below the qualified", [
             ...path,
             "bestAtRank",
             "rank",
           ]);
         }
-        if (!isCount(bestAtRank.count, 1) || (pools !== undefined && bestAtRank.count > pools)) {
-          report("QUALIFICATION_COUNT", "at most one team per pool at that rank", [
+        const atRank =
+          pools === undefined
+            ? undefined
+            : Math.max(0, Math.min(pools, teams - pools * (rank - 1)));
+        if (!isCount(bestAtRank.count, 1) || (atRank !== undefined && bestAtRank.count > atRank)) {
+          valid = false;
+          report("QUALIFICATION_COUNT", "at most one team per pool that has a team at that rank", [
             ...path,
             "bestAtRank",
             "count",
           ]);
         }
       }
-      return pools === undefined ? teams : Math.min(count * pools + extra, teams);
+      const qualified = count * (pools ?? 1) + (bestAtRank?.count ?? 0);
+      if (!isCount(count, 1) || (pools !== undefined && qualified > teams)) {
+        valid = false;
+        report("QUALIFICATION_COUNT", `at most the ${teams} teams can qualify`, [...path, "count"]);
+      }
+      // After an invalid rule or with unknown pools, the next phases are checked as if every
+      // team went on.
+      return valid && pools !== undefined ? qualified : teams;
     }
   }
 }

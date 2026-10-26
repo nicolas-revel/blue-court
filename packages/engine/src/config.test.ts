@@ -99,6 +99,31 @@ describe("validateTournament", () => {
     expect(codes(best(3, 5))).toEqual(["QUALIFICATION_COUNT"]);
   });
 
+  it("only takes best teams from pools that have a team at that rank", () => {
+    // 9 teams in 4 pools: sizes 3, 2, 2, 2, so a single pool has a 3rd-placed team.
+    const nine = (rank: number, count: number): Tournament => {
+      const t = clubDay();
+      return {
+        ...withPhase(t, 0, {
+          qualification: { kind: "topPerPool", count: 1, bestAtRank: { rank, count } },
+        }),
+        teams: t.teams.slice(0, 9),
+      };
+    };
+    expect(codes(nine(3, 1))).toEqual([]);
+    expect(codes(nine(3, 2))).toEqual(["QUALIFICATION_COUNT"]);
+    expect(codes(nine(4, 1))).toEqual(["QUALIFICATION_RANK", "QUALIFICATION_COUNT"]);
+  });
+
+  it("keeps checking the next phases after an invalid count", () => {
+    const t = withPhase(
+      withPhase(clubDay(), 0, { qualification: { kind: "topOverall", count: Number.NaN } }),
+      1,
+      { format: { kind: "pools", poolCount: 17, draw: "seeded" } },
+    );
+    expect(codes(t)).toEqual(["QUALIFICATION_COUNT", "POOL_COUNT"]);
+  });
+
   it("leaves level pool qualification open until the pools exist", () => {
     const t = withPhase(clubDay(), 1, {
       format: { kind: "levelPools", grouping: { kind: "byRank" } },
