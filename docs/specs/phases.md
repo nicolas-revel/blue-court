@@ -20,12 +20,12 @@ Typical club format: pools in the morning, then level pools or a full placement 
 - **Random draw**: every team is drawn at random, seeds are ignored.
 - The draw is reproducible: it uses a seed stored with the tournament, so the same tournament always gives the same pools.
 - When the number of teams does not divide evenly, pool sizes differ by at most one team.
-- The number of pools goes from 1 to the number of teams.
+- The number of pools goes from 1 to the number of teams, so a draw needs at least one team.
 
 ## Level pools
 
 - **By rank**: all 1st-placed teams together, all 2nd-placed together, and so on. A level pool never holds two teams from the same previous pool.
-- **By bands**: the overall ranking across pools is cut into consecutive bands. Bands are as even as possible and never larger than the pool size, larger bands first (13 teams in pools of 4: 4, 3, 3, 3).
+- **By bands**: the overall ranking across pools is cut into consecutive bands. Bands are as even as possible and never larger than the pool size, larger bands first (13 teams in pools of 4: 4, 3, 3, 3). Since bands are even, a band of a single team (which plays no match) only happens when a single team is left in the phase.
 - **Overall ranking across pools**: teams are ordered by their position in their pool, then teams at the same position are compared with the phase's tie-breakers. Head-to-head is skipped since they did not meet. Wins and ranking points are averaged per match played, so teams from pools of different sizes compare fairly; set and point ratios are used as is. Teams still level are listed by team id.
 
 ## Cross-cutting rules

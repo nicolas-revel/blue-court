@@ -70,6 +70,9 @@ describe("drawPools", () => {
 
   it("refuses a pool count out of range and duplicate teams", () => {
     const teams = unseededTeams(4);
+    expect(() => drawPools({ teams: [], poolCount: 1, draw: "random", seed: 1 })).toThrow(
+      "INVALID_POOL_COUNT",
+    );
     for (const poolCount of [0, 5, 1.5]) {
       expect(() => drawPools({ teams, poolCount, draw: "random", seed: 1 })).toThrow(
         "INVALID_POOL_COUNT",

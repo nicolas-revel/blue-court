@@ -50,7 +50,7 @@ function snake(order: readonly TeamId[], poolCount: number): TeamId[][] {
 export function drawPools(input: PoolDrawInput): TeamId[][] {
   const { teams, poolCount, draw, seed } = input;
   assertUnique(teams.map((t) => t.id));
-  if (!Number.isInteger(poolCount) || poolCount < 1 || poolCount > Math.max(teams.length, 1)) {
+  if (!Number.isInteger(poolCount) || poolCount < 1 || poolCount > teams.length) {
     throw new PoolsError(
       "INVALID_POOL_COUNT",
       "the number of pools must be from 1 to the number of teams",
@@ -163,6 +163,7 @@ export function buildLevelPools(input: LevelPoolsInput): TeamId[][] {
     }
     return pools;
   }
+  if (ranking.length === 0) return [];
   // Bands are as even as possible and never larger than the pool size; larger bands come first.
   const count = Math.ceil(ranking.length / grouping.poolSize);
   const base = Math.floor(ranking.length / count);
