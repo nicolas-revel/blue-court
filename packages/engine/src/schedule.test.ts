@@ -253,6 +253,9 @@ describe("moveMatch and removeCourt", () => {
     expect(() => removeCourt({ schedule: plan, court: "C1", courts: ["C1"], from })).toThrow(
       expect.objectContaining({ code: "NO_COURT" }),
     );
+    expect(() => removeCourt({ schedule: plan, court: "C9", courts: ["C1", "C2"], from })).toThrow(
+      expect.objectContaining({ code: "UNKNOWN_COURT" }),
+    );
   });
 });
 
@@ -405,6 +408,65 @@ describe("schedule properties", () => {
           }
         }
       }),
+    );
+  });
+
+  it("moves a match without touching the others", () => {
+    fc.assert(
+      fc.property(scheduleArb, fc.nat(), fc.integer({ min: 0, max: 600 }), (input, pick, start) => {
+        const s = settings(input.courts + 1, { breakMinutes: input.breakMinutes });
+        const plan = planSchedule({ matches: poolsOf(input.pools), settings: s });
+        const entry = plan[pick % plan.length];
+        if (entry === undefined) return;
+        const court = s.courts[pick % s.courts.length] ?? "C1";
+        const moved = moveMatch(plan, entry.match, { court, start }, s.courts);
+        expect(moved.find((e) => e.match === entry.match)).toEqual({
+          ...entry,
+          court,
+          start,
+          end: start + entry.end - entry.start,
+        });
+        expect(moved.filter((e) => e.match !== entry.match)).toEqual(
+          plan.filter((e) => e.match !== entry.match),
+        );
+      }),
+    );
+  });
+
+  it("empties a removed court from `from` on and balances the others", () => {
+    fc.assert(
+      fc.property(
+        scheduleArb,
+        fc.nat(),
+        fc.integer({ min: 0, max: 400 }),
+        (input, pick, offset) => {
+          const s = settings(input.courts + 1, { breakMinutes: input.breakMinutes });
+          const plan = planSchedule({ matches: poolsOf(input.pools), settings: s });
+          const court = s.courts[pick % s.courts.length] ?? "C1";
+          const from = s.start + offset;
+          const removed = removeCourt({ schedule: plan, court, courts: s.courts, from });
+          const later = (e: ScheduledMatch) => e.start >= from;
+          expect(removed.some((e) => e.court === court && later(e))).toBe(false);
+          // Every match is kept once, at its time; only the court of moved matches changes.
+          expect(removed.map(({ court: _c, ...rest }) => rest)).toEqual(
+            plan.map(({ court: _c, ...rest }) => rest),
+          );
+          for (const [i, e] of removed.entries()) {
+            if (plan[i]?.court !== court || !later(e)) expect(e).toEqual(plan[i]);
+          }
+          // Each moved match went to the least loaded court, so the spread of the loads grows
+          // to at most one.
+          const others = s.courts.filter((c) => c !== court);
+          const spread = (schedule: readonly ScheduledMatch[]) => {
+            const loads = others.map(
+              (c) => schedule.filter((e) => e.court === c && later(e)).length,
+            );
+            return Math.max(...loads) - Math.min(...loads);
+          };
+          const moved = plan.some((e) => e.court === court && later(e));
+          if (moved) expect(spread(removed)).toBeLessThanOrEqual(Math.max(1, spread(plan)));
+        },
+      ),
     );
   });
 });
