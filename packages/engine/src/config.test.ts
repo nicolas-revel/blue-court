@@ -343,6 +343,14 @@ const mutations: readonly [ConfigErrorCode, (t: Tournament) => Tournament][] = [
   ],
   ["TOO_FEW_TEAMS", (t) => ({ ...t, teams: [] })],
   [
+    "QUALIFICATION_FORMAT",
+    (t) =>
+      withPhase(t, 0, {
+        format: { kind: "fullPlacement" },
+        qualification: { kind: "topPerPool", count: 1 },
+      }),
+  ],
+  [
     "TOO_FEW_TEAMS",
     (t) =>
       withPhase(withPhase(t, 0, { qualification: { kind: "topOverall", count: 1 } }), 1, {

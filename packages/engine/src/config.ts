@@ -28,7 +28,8 @@ export type ConfigErrorCode =
   | "POOL_SIZE"
   | "TOO_FEW_TEAMS"
   | "QUALIFICATION_COUNT"
-  | "QUALIFICATION_RANK";
+  | "QUALIFICATION_RANK"
+  | "QUALIFICATION_FORMAT";
 
 export interface ConfigError {
   readonly code: ConfigErrorCode;
@@ -44,6 +45,9 @@ export type ConfigValidation =
 
 type Path = readonly (string | number)[];
 type Report = (code: ConfigErrorCode, message: string, path: Path) => void;
+
+/** Volleyball matches are played to at most 3 winning sets. */
+const MAX_SETS_TO_WIN = 3;
 
 const isCount = (n: number, min: number) => Number.isInteger(n) && n >= min;
 const isPositive = (n: number) => Number.isFinite(n) && n > 0;
@@ -75,8 +79,8 @@ function checkMatchRules(rules: MatchRules, path: Path, report: Report): void {
     report("TIME_LIMIT", "a time limit must be positive", [...path, "timeLimit", "minutes"]);
   }
   if (rules.kind === "sets") {
-    if (!(isCount(rules.setsToWin, 1) && rules.setsToWin <= 3)) {
-      report("SETS_TO_WIN", "sets to win go from 1 to 3", [...path, "setsToWin"]);
+    if (!(isCount(rules.setsToWin, 1) && rules.setsToWin <= MAX_SETS_TO_WIN)) {
+      report("SETS_TO_WIN", `sets to win go from 1 to ${MAX_SETS_TO_WIN}`, [...path, "setsToWin"]);
     }
     if (rules.tieBreakSet !== undefined) {
       if (rules.setsToWin === 1) {
@@ -147,6 +151,13 @@ function checkQualification(
       return valid ? count : teams;
     }
     case "topPerPool": {
+      if (format.kind !== "pools" && format.kind !== "levelPools") {
+        report("QUALIFICATION_FORMAT", "only a pool phase can qualify the top of each pool", [
+          ...path,
+          "kind",
+        ]);
+        return teams;
+      }
       // Level pools only know their number of pools once the previous ranking is in.
       const known = poolsOf(format);
       const pools = known !== undefined && isCount(known, 1) && known <= teams ? known : undefined;

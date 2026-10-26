@@ -60,5 +60,5 @@ Before a tournament starts, its settings are checked, so that a configuration th
 - Matches: 1 to 3 sets to win, at least 1 fixed set, positive durations and time limits, no tie-break set when one set wins the match, and no draw with an odd number of fixed sets.
 - Ranking points are numbers, and each tie-breaker is used once.
 - Formats: 1 pool up to one per team, bands of at least 2 teams, and at least 2 teams for a bracket.
-- Qualification: each phase is checked with the number of teams the previous one qualifies. The top of each pool cannot take more teams than there are; the best teams at a rank are taken below the qualified ranks, at most one per pool. Level pools only know their number of pools once the previous ranking is in, so their qualification is checked then.
+- Qualification: only a pool or level pool phase can qualify the top of each pool. Each phase is checked with the number of teams the previous one qualifies. The top of each pool cannot take more teams than there are; the best teams at a rank are taken below the qualified ranks, at most one per pool. Level pools only know their number of pools once the previous ranking is in, so their qualification is checked then.
 
