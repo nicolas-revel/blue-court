@@ -386,4 +386,29 @@ describe("bracket properties", () => {
       }),
     );
   });
+
+  it("never pairs second-round losers with a team they already played", () => {
+    fc.assert(
+      fc.property(bracketArb, ({ n, picks }) => {
+        const { resolved } = play(
+          doubleElimination({ teams: teams(n), grandFinalReset: false }),
+          (_h, _a, i) => picks[i % picks.length] ?? true,
+        );
+        const pair = (r: (typeof resolved)[number]) => [r.home, r.away].sort().join("-");
+        const winnersPairs = resolved
+          .filter((r) => r.playable && r.match.bracket === "winners")
+          .map(pair);
+        const lastLosersRound = Math.max(
+          ...resolved.filter((r) => r.match.bracket === "losers").map((r) => r.match.round),
+        );
+        // The second-round losers drop into losers bracket round 2, unless it is already the
+        // losers bracket final (4 slots), where a rematch is unavoidable.
+        for (const r of resolved) {
+          if (r.playable && r.match.id.startsWith("losers:2:") && r.match.round < lastLosersRound) {
+            expect(winnersPairs).not.toContain(pair(r));
+          }
+        }
+      }),
+    );
+  });
 });

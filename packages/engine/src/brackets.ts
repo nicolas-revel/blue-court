@@ -151,7 +151,8 @@ export function fullPlacement(input: BracketInput): BracketMatch[] {
 
 /**
  * Double elimination: a team is out after its second loss. Winners bracket losers drop into the
- * losers bracket, in reverse order so that two teams do not meet again straight away. The
+ * losers bracket, in reverse order so that the second-round losers never meet a team they already
+ * played (later rematches cannot always be avoided). The
  * winners bracket champion meets the losers bracket champion in the grand final; with a reset,
  * a second final is played if the losers bracket champion wins the first.
  */
@@ -189,19 +190,20 @@ export function doubleElimination(
   // Losers bracket: odd rounds pair the survivors, even rounds take the next winners bracket losers.
   let survivors = (winnersRounds[0] ?? []).map((m) => slot("loser", m));
   let eliminated = 0;
-  let round = 1;
-  const losersRound = (pairs: [BracketSlot, BracketSlot][]) => {
+  let losersRoundNo = 1;
+  const addLosersRound = (pairs: [BracketSlot, BracketSlot][]) => {
     eliminated += pairs.length;
     const matches = pairs.map(([home, away], i) => ({
-      id: `losers:${round}:${i + 1}`,
+      id: `losers:${losersRoundNo}:${i + 1}`,
       bracket: "losers",
-      round: round + 1,
+      // The id counts losers bracket rounds; `round` counts the whole bracket, one round later.
+      round: losersRoundNo + 1,
       home,
       away,
       places: { loser: size - eliminated + 1 },
     }));
     out.push(...matches);
-    round += 1;
+    losersRoundNo += 1;
     survivors = matches.map((m) => slot("winner", m));
   };
   for (const dropping of winnersRounds.slice(1)) {
@@ -210,10 +212,10 @@ export function doubleElimination(
       for (let i = 0; i < survivors.length; i += 2) {
         pairs.push([survivors[i] ?? { kind: "bye" }, survivors[i + 1] ?? { kind: "bye" }]);
       }
-      losersRound(pairs);
+      addLosersRound(pairs);
     }
     const reversed = [...dropping].reverse();
-    losersRound(
+    addLosersRound(
       survivors.map((s, i): [BracketSlot, BracketSlot] => {
         const drop = reversed[i];
         return [s, drop === undefined ? { kind: "bye" } : slot("loser", drop)];
@@ -222,7 +224,7 @@ export function doubleElimination(
   }
   const losersChampion = survivors[0] ?? slot("loser", winnersFinal);
 
-  const finalRound = Math.max(winnersRounds.length, round) + 1;
+  const finalRound = Math.max(winnersRounds.length, losersRoundNo) + 1;
   const final: BracketMatch = {
     id: "final:1:1",
     bracket: "final",
