@@ -11,6 +11,13 @@ export {
   resolveBracket,
   singleElimination,
 } from "./brackets.js";
+export {
+  type ConfigError,
+  type ConfigErrorCode,
+  type ConfigValidation,
+  validateMatchRules,
+  validateTournament,
+} from "./config.js";
 export { EngineError } from "./errors.js";
 export { FFVB_MATCH_RULES, FFVB_RANKING_POINTS, FFVB_TIE_BREAKERS } from "./ffvb.js";
 export type {
