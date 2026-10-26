@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/.turbo", "!pnpm-lock.yaml"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/.turbo",
+      "!pnpm-lock.yaml",
+      "!**/.next",
+      "!**/next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -87,6 +94,21 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/web/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useImportExtensions": "off"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

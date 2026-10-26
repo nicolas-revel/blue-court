@@ -20,3 +20,18 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the images
+        run: docker compose build
+      - name: Start the stack and check it answers
+        run: |
+          docker compose up -d --wait
+          curl --fail --retry 10 --retry-delay 2 --retry-all-errors http://localhost:4000/health
+          curl --fail --retry 10 --retry-delay 2 --retry-all-errors http://localhost:3000/manifest.webmanifest
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
