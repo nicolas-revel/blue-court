@@ -82,6 +82,28 @@ function setState(rules: SetRules, score: SetScore, set: number): SetState {
   return high === cap ? { state: "won", winner: leader } : { state: "unfinished", leader };
 }
 
+/** Whether a set (0-based index) is the deciding set: the last one of a match to 2+ sets. */
+export function isDecidingSet(rules: MatchRules, index: number): boolean {
+  return rules.kind === "sets" && rules.setsToWin >= 2 && index === 2 * rules.setsToWin - 2;
+}
+
+/** Rules of a set by its 0-based index: the tie-break set applies to the deciding set only. */
+function setRulesAt(rules: Exclude<MatchRules, { kind: "timed" }>, index: number): SetRules {
+  return rules.kind === "sets" && isDecidingSet(rules, index) && rules.tieBreakSet
+    ? rules.tieBreakSet
+    : rules.set;
+}
+
+/**
+ * Who won a set (0-based index) under the match rules, or undefined if it is not finished
+ * (the last set of a match stopped by time). Meant for scores that already passed `validateScore`.
+ */
+export function setWinner(rules: MatchRules, index: number, set: SetScore): Side | undefined {
+  if (rules.kind === "timed") return undefined;
+  const state = setState(setRulesAt(rules, index), set, index + 1);
+  return state.state === "won" ? state.winner : undefined;
+}
+
 /**
  * Tells whether a score is possible under the match rules of its phase, and who won.
  * A forfeit is always valid and won by the other team.
@@ -113,10 +135,7 @@ function validateSets(
   const endedByTime = score.endedByTime === true;
   const toWin = rules.kind === "sets" ? rules.setsToWin : undefined;
   const maxSets = rules.kind === "sets" ? 2 * rules.setsToWin - 1 : rules.sets;
-  const rulesFor = (index: number): SetRules =>
-    rules.kind === "sets" && rules.setsToWin >= 2 && index === maxSets - 1 && rules.tieBreakSet
-      ? rules.tieBreakSet
-      : rules.set;
+  const rulesFor = (index: number): SetRules => setRulesAt(rules, index);
 
   if (score.sets.length === 0) return fail(error("MATCH_INCOMPLETE", "the match is not over"));
   const errors: ScoreError[] = [];

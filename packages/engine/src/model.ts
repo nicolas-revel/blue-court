@@ -67,6 +67,7 @@ export type TieBreaker =
   | "setRatio"
   | "pointRatio"
   | "headToHead"
+  /** Seeded draw, so the standings are reproducible; the seed is required. */
   | "random";
 
 export type PhaseFormat =
