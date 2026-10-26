@@ -401,7 +401,8 @@ describe("schedule properties", () => {
               matches,
               settings: s,
               actual,
-              now: end,
+              // Time only moves forward, even when this match ended before an earlier one.
+              now: Math.max(s.start, ...actual.map((a) => a.end)),
               earlyStart,
             });
           }
