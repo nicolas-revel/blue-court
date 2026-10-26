@@ -204,6 +204,12 @@ export function adjustSchedule(input: {
     if (!planned.has(times.match)) {
       throw new ScheduleError("UNKNOWN_MATCH", `match ${times.match} is not in the schedule`);
     }
+    if (real.has(times.match)) {
+      throw new ScheduleError("DUPLICATE_MATCH", `match ${times.match} has two real times`);
+    }
+    if (times.end !== undefined && times.end < times.start) {
+      throw new ScheduleError("INVALID_DURATION", `match ${times.match} ends before it starts`);
+    }
     real.set(times.match, times);
   }
 

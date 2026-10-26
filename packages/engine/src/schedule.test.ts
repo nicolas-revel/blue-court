@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { doubleElimination, singleElimination } from "./brackets.js";
 import { roundRobin } from "./round-robin.js";
 import {
   adjustSchedule,
@@ -175,17 +176,31 @@ describe("adjustSchedule", () => {
     expect(adjusted[1]?.start).toBe(585);
   });
 
-  it("refuses times for a match that is not in the schedule", () => {
-    expect(() =>
+  it("refuses unknown, duplicate or negative real times", () => {
+    const run = (actual: { match: string; start: number; end?: number }[]) => () =>
       adjustSchedule({
         schedule: plan,
         matches,
         settings: settings(1),
-        actual: [{ match: "x", start: 540 }],
-        now: 540,
+        actual,
+        now: 600,
         earlyStart: false,
-      }),
-    ).toThrow(expect.objectContaining({ code: "UNKNOWN_MATCH" }));
+      });
+    expect(run([{ match: "x", start: 540 }])).toThrow(
+      expect.objectContaining({ code: "UNKNOWN_MATCH" }),
+    );
+    expect(
+      run([
+        { match: first, start: 540 },
+        { match: first, start: 545 },
+      ]),
+    ).toThrow(expect.objectContaining({ code: "DUPLICATE_MATCH" }));
+    expect(run([{ match: first, start: 560, end: 550 }])).toThrow(
+      expect.objectContaining({ code: "INVALID_DURATION" }),
+    );
+    expect(run([{ match: first, start: Number.NaN }])).toThrow(
+      expect.objectContaining({ code: "INVALID_DURATION" }),
+    );
   });
 });
 
@@ -469,4 +484,58 @@ describe("schedule properties", () => {
       ),
     );
   });
+
+  it("stays consistent after moving a match, pools and brackets alike", () => {
+    fc.assert(
+      fc.property(
+        scheduleArb,
+        fc.integer({ min: 2, max: 16 }),
+        fc.boolean(),
+        fc.nat(),
+        fc.integer({ min: 0, max: 600 }),
+        fc.boolean(),
+        (input, n, double, pick, offset, earlyStart) => {
+          const matches = [...poolsOf(input.pools), ...bracketMatches(n, double)];
+          const s = settings(input.courts, { breakMinutes: input.breakMinutes });
+          const plan = planSchedule({ matches, settings: s });
+          expectConsistent(matches, plan, s.breakMinutes);
+          const entry = plan[pick % plan.length];
+          if (entry === undefined) return;
+          const court = s.courts[pick % s.courts.length] ?? "C1";
+          const moved = moveMatch(plan, entry.match, { court, start: s.start + offset }, s.courts);
+          const adjusted = adjustSchedule({
+            schedule: moved,
+            matches,
+            settings: s,
+            actual: [],
+            now: s.start,
+            earlyStart,
+          });
+          expect(adjusted.map((e) => e.match).sort()).toEqual(plan.map((e) => e.match).sort());
+          expectConsistent(matches, adjusted, s.breakMinutes);
+        },
+      ),
+    );
+  });
 });
+
+/** A bracket's matches: known teams, and the matches each one waits for. */
+function bracketMatches(n: number, double: boolean): SchedulableMatch[] {
+  const names = teams(n, "K");
+  const bracket = double
+    ? doubleElimination({ teams: names, grandFinalReset: true })
+    : singleElimination({ teams: names, consolation: true });
+  return bracket.map((m) => {
+    const sides = [m.home, m.away];
+    return {
+      id: m.id,
+      teams: sides.flatMap((side) => (side.kind === "team" ? [side.team] : [])),
+      after: [
+        ...sides.flatMap((side) =>
+          side.kind === "winner" || side.kind === "loser" ? [side.match] : [],
+        ),
+        ...(m.onlyIf ? [m.onlyIf.match] : []),
+      ],
+    };
+  });
+}
