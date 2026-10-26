@@ -372,7 +372,8 @@ export function assignReferees(input: {
       if (!overlaps(entry, other)) continue;
       for (const team of teamsOf(other)) busy.add(team);
     }
-    for (const done of out) if (overlaps(entry, done) && done.referee) busy.add(done.referee);
+    for (const done of out)
+      if (overlaps(entry, done) && done.referee !== undefined) busy.add(done.referee);
     const group = byId.get(entry.match)?.group;
     const inGroup = (team: TeamId) =>
       group !== undefined && groupsOf.get(team)?.has(group) ? 0 : 1;

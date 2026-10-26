@@ -566,7 +566,8 @@ describe("schedule properties", () => {
           const busy = new Set(
             ordered.filter((o) => overlap(o, entry)).flatMap((o) => teamsOf(matches, o)),
           );
-          for (const o of done) if (overlap(o, entry) && o.referee) busy.add(o.referee);
+          for (const o of done)
+            if (overlap(o, entry) && o.referee !== undefined) busy.add(o.referee);
           const free = allTeams.filter((t) => !busy.has(t));
           if (entry.referee === undefined) {
             expect(free).toEqual([]);
