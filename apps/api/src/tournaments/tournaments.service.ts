@@ -6,7 +6,7 @@ import {
   type Tournament,
   validateTournament,
 } from "@blue-court/engine";
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma.service.js";
 import { TournamentsGateway } from "./tournaments.gateway.js";
@@ -45,13 +45,19 @@ const isNewTournament = (body: unknown): body is NewTournament => {
 /** Seeds fit the database's 32-bit integer column; `randomInt` excludes this bound. */
 const SEED_LIMIT = 2 ** 31;
 
-/** The engine trusts the shapes it is given, so a malformed body makes it throw. */
+const logger = new Logger("TournamentsService");
+
+/**
+ * The engine trusts the shapes it is given, so a team or phase missing a nested setting makes
+ * it throw a TypeError. That is answered as a 400 but logged, since an engine bug looks the same;
+ * any other error stays a 500.
+ */
 const validate = (tournament: Tournament): ConfigValidation => {
   try {
     return validateTournament(tournament);
   } catch (error) {
-    // Reading a field of a missing value; anything else is a real bug and stays a 500.
     if (error instanceof TypeError) {
+      logger.warn(`tournament refused as malformed: ${error.message}`);
       throw new BadRequestException({ message: "a team or phase is malformed" });
     }
     throw error;
