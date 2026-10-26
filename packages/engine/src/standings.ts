@@ -156,8 +156,34 @@ function sumLines(lines: readonly MatchLine[]): Totals {
 }
 
 /** Won over lost; a team that lost nothing is ahead of every team that lost something. */
-export const ratio = (won: number, lost: number) =>
+const ratio = (won: number, lost: number) =>
   lost === 0 ? (won === 0 ? 0 : Number.POSITIVE_INFINITY) : won / lost;
+
+/**
+ * Value of a team's row for a tie-breaker that only needs the row (every one but head-to-head,
+ * which needs the matches); higher is better.
+ */
+export function rowValue(
+  criterion: Exclude<TieBreaker, "headToHead">,
+  row: Pick<
+    StandingRow,
+    "team" | "wins" | "rankingPoints" | "setsWon" | "setsLost" | "pointsWon" | "pointsLost"
+  >,
+  seed: number | undefined,
+): number {
+  switch (criterion) {
+    case "wins":
+      return row.wins;
+    case "rankingPoints":
+      return row.rankingPoints;
+    case "setRatio":
+      return ratio(row.setsWon, row.setsLost);
+    case "pointRatio":
+      return ratio(row.pointsWon, row.pointsLost);
+    case "random":
+      return drawKey(seed ?? 0, row.team);
+  }
+}
 
 /**
  * Ranks a pool from its played matches, applying the phase's tie-breakers in order.
@@ -192,25 +218,12 @@ export function computeStandings(input: StandingsInput): StandingRow[] {
   const totals = new Map(teams.map((team) => [team, sumLines(linesOf(team))]));
   const get = (team: TeamId) => totals.get(team) ?? sumLines([]);
 
-  const key = (criterion: TieBreaker, team: TeamId, group: readonly TeamId[]): number => {
-    const t = get(team);
-    switch (criterion) {
-      case "wins":
-        return t.wins;
-      case "rankingPoints":
-        return t.rankingPoints;
-      case "setRatio":
-        return ratio(t.setsWon, t.setsLost);
-      case "pointRatio":
-        return ratio(t.pointsWon, t.pointsLost);
-      case "headToHead":
-        return linesOf(team)
+  const key = (criterion: TieBreaker, team: TeamId, group: readonly TeamId[]): number =>
+    criterion === "headToHead"
+      ? linesOf(team)
           .filter((l) => group.includes(l.opponent))
-          .reduce((sum, l) => sum + l.rankingPoints, 0);
-      case "random":
-        return drawKey(seed ?? 0, team);
-    }
-  };
+          .reduce((sum, l) => sum + l.rankingPoints, 0)
+      : rowValue(criterion, { team, ...get(team) }, seed);
 
   /** Splits a level group into ordered subgroups, best first, then breaks each further. */
   const rankGroup = (group: readonly TeamId[], index: number): TeamId[][] => {

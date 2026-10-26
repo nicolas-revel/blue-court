@@ -24,7 +24,7 @@ Typical club format: pools in the morning, then level pools or a full placement 
 
 ## Level pools
 
-- **By rank**: all 1st-placed teams together, all 2nd-placed together, and so on. A level pool never holds two teams from the same previous pool.
+- **By rank**: all 1st-placed teams together, all 2nd-placed together, and so on. A level pool never holds two teams from the same previous pool, except when pools are uneven: teams left alone at the last positions join the last level pool of at least 2 teams rather than play no match (pools of 5 and 2: the 3rd, 4th and 5th of the first pool join the level pool of the 2nd-placed teams).
 - **By bands**: the overall ranking across pools is cut into consecutive bands. Bands are as even as possible and never larger than the pool size, larger bands first (13 teams in pools of 4: 4, 3, 3, 3). Since bands are even, a band of a single team (which plays no match) only happens when a single team is left in the phase.
 - **Overall ranking across pools**: teams are ordered by their position in their pool, then teams at the same position are compared with the phase's tie-breakers. Head-to-head is skipped since they did not meet. Wins and ranking points are averaged per match played, so teams from pools of different sizes compare fairly; set and point ratios are used as is. Teams still level are listed by team id.
 

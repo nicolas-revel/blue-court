@@ -153,6 +153,24 @@ describe("buildLevelPools", () => {
     ]);
   });
 
+  it("joins a lone team at the last position to the level pool above", () => {
+    const uneven = [
+      [row("A", 12, 4), row("B", 9, 4), row("C", 6, 4), row("D", 3, 4), row("E", 0, 4)],
+      [row("F", 10), row("G", 6), row("H", 3), row("I", 0)],
+    ];
+    const pools = buildLevelPools({
+      standings: uneven,
+      tieBreakers: FFVB_TIE_BREAKERS,
+      grouping: { kind: "byRank" },
+    });
+    expect(pools).toEqual([
+      ["F", "A"],
+      ["B", "G"],
+      ["C", "H"],
+      ["D", "I", "E"],
+    ]);
+  });
+
   it("cuts the overall ranking into bands no larger than the pool size", () => {
     const pools = buildLevelPools({
       standings: [...standings, [row("M", 1, 0)]],
@@ -300,10 +318,17 @@ describe("pool properties", () => {
         expect(byRank.flat().sort()).toEqual(all);
         // A level pool by rank never holds two teams from the same first pool.
         byRank.forEach((pool, k) => {
-          const origins = pool.map((team) => team.split("T")[0]);
-          expect(new Set(origins).size).toBe(pool.length);
-          // Level pool k holds the teams at position k + 1 in their pool.
-          for (const team of pool) expect(Number(team.split("T")[1])).toBe(k);
+          const atPosition = pool.filter((team) => Number(team.split("T")[1]) === k);
+          const origins = atPosition.map((team) => team.split("T")[0]);
+          expect(new Set(origins).size).toBe(atPosition.length);
+          // Level pool k holds the teams at position k + 1 in their pool; the last one may also
+          // hold the lone teams of the following positions.
+          const isLast = k === byRank.length - 1;
+          for (const team of pool) {
+            const position = Number(team.split("T")[1]);
+            expect(position === k || (isLast && position > k)).toBe(true);
+          }
+          if (byRank.length > 1) expect(pool.length).toBeGreaterThanOrEqual(2);
         });
         const bands = buildLevelPools({
           standings,

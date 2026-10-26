@@ -1,7 +1,7 @@
 import { EngineError } from "./errors.js";
 import type { LevelPoolGrouping, PoolDraw, Team, TeamId, TieBreaker } from "./model.js";
-import { byTeamId, drawKey, shuffle } from "./random.js";
-import { ratio, type StandingRow } from "./standings.js";
+import { byTeamId, shuffle } from "./random.js";
+import { rowValue, type StandingRow } from "./standings.js";
 
 export type PoolsErrorCode =
   | "INVALID_POOL_COUNT"
@@ -111,22 +111,19 @@ export function rankAcrossPools(input: CrossPoolInput): PoolPlacement[] {
   );
   assertUnique(rows.map((r) => r.row.team));
   const perMatch = (value: number, played: number) => (played === 0 ? 0 : value / played);
-  const key = (criterion: TieBreaker, row: StandingRow): number => {
-    switch (criterion) {
-      case "wins":
-        return perMatch(row.wins, row.played);
-      case "rankingPoints":
-        return perMatch(row.rankingPoints, row.played);
-      case "setRatio":
-        return ratio(row.setsWon, row.setsLost);
-      case "pointRatio":
-        return ratio(row.pointsWon, row.pointsLost);
-      case "headToHead":
-        return 0;
-      case "random":
-        return drawKey(seed ?? 0, row.team);
-    }
-  };
+  // Head-to-head is skipped; wins and ranking points are compared per match.
+  const key = (criterion: TieBreaker, row: StandingRow): number =>
+    criterion === "headToHead"
+      ? 0
+      : rowValue(
+          criterion,
+          {
+            ...row,
+            wins: perMatch(row.wins, row.played),
+            rankingPoints: perMatch(row.rankingPoints, row.played),
+          },
+          seed,
+        );
   const compare = (a: StandingRow, b: StandingRow) => {
     for (const criterion of tieBreakers) {
       const ka = key(criterion, a);
@@ -161,7 +158,16 @@ export function buildLevelPools(input: LevelPoolsInput): TeamId[][] {
       pool.push(team);
       pools[position - 1] = pool;
     }
-    return pools;
+    // With uneven pools the last positions can hold a single team, who would play no match:
+    // those teams join the level pool above. Positions only get smaller, so they are at the end.
+    const firstLone = pools.findIndex((pool) => pool.length < 2);
+    if (firstLone === -1) return pools;
+    const lone = pools.slice(firstLone).flat();
+    const kept = pools.slice(0, firstLone);
+    const above = kept.at(-1);
+    if (above === undefined) return [lone];
+    above.push(...lone);
+    return kept;
   }
   if (ranking.length === 0) return [];
   // Bands are as even as possible and never larger than the pool size; larger bands come first.
