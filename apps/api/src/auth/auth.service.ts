@@ -192,13 +192,13 @@ export class AuthService {
     const tokenHash = hashToken(token);
     const reset = await this.prisma.passwordReset.findUnique({ where: { tokenHash } });
     if (reset === null) throw invalid;
-    // Used once: the delete is the gate. Of two requests racing with the same link, only the one
-    // whose delete removed the row goes on.
     // Hashed first, so the slow part stays outside the transaction.
     const passwordHash = await hashPassword(password);
     // All or nothing: a failure leaves the link usable and the old password and sessions as
     // they were.
     const organizer = await this.prisma.$transaction(async (tx) => {
+      // Used once: the delete is the gate. Of two requests racing with the same link, only the
+      // one whose delete removed the row goes on.
       const { count } = await tx.passwordReset.deleteMany({
         where: { tokenHash, expiresAt: { gt: now } },
       });

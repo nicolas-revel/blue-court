@@ -41,11 +41,13 @@ export function ResetPasswordForm({ apiUrl }: { apiUrl: string }) {
         window.location.assign("/organizer");
         return;
       }
-      setError(
-        t(response.status === 429 ? "errors.tooManyAttempts" : "reset.invalid", {
-          min: PASSWORD_MIN_LENGTH,
-        }),
-      );
+      const message =
+        response.status === 429
+          ? "errors.tooManyAttempts"
+          : response.status === 400
+            ? "reset.invalid"
+            : "errors.unknown";
+      setError(t(message, { min: PASSWORD_MIN_LENGTH }));
     } catch {
       setError(t("errors.network"));
     }
