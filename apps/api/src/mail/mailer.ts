@@ -11,8 +11,9 @@ export interface Mail {
  * Sends emails through the SMTP server in `SMTP_URL` (for example
  * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, the
  * whole email is written to the log only with `MAIL_LOG_BODY=1`, so reset links can be followed
- * locally, and never when `WEB_ORIGIN` is HTTPS. Otherwise only the recipient and subject are logged: an email holds a reset link,
- * which must never sit in a server log, so logging it takes an explicit opt-in.
+ * locally, and never when `WEB_ORIGIN` is HTTPS. Otherwise only the recipient and subject are
+ * logged: an email holds a reset link, which must never sit in a server log, so logging it
+ * takes an explicit opt-in.
  */
 @Injectable()
 export class Mailer {
