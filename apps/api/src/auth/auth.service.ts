@@ -113,7 +113,7 @@ export class AuthService {
     const valid =
       typeof password === "string" &&
       password.length <= PASSWORD_MAX_LENGTH &&
-      (await verifyPassword(password, organizer?.passwordHash ?? (await decoyHash)));
+      (await verifyPassword(password, organizer?.passwordHash ?? (await decoyHash())));
     if (organizer === null || !valid) {
       throw new UnauthorizedException({ message: "wrong email or password" });
     }
@@ -138,8 +138,8 @@ export class AuthService {
   private async sendResetLink(email: string): Promise<void> {
     const organizer = await this.prisma.organizer.findUnique({ where: { email } });
     if (organizer === null) return;
-    // One email a minute per account at most: the address cannot be flooded, nor the pending
-    // link replaced over and over by someone else.
+    // One email a minute per account at most: this bounds the emails and how often someone else
+    // can replace the pending link (the trade-off is in docs/specs/accounts.md).
     const recent = await this.prisma.passwordReset.findFirst({
       where: {
         organizerId: organizer.id,

@@ -58,5 +58,13 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   }
 }
 
-/** Hashed once, so that signing in with an unknown email takes as long as with a wrong password. */
-export const decoyHash: Promise<string> = hashPassword(randomBytes(16).toString("hex"));
+let decoy: Promise<string> | undefined;
+
+/**
+ * A hash of a random password, made on first use and then reused, so that signing in with an
+ * unknown email takes as long as with a wrong password.
+ */
+export const decoyHash = (): Promise<string> => {
+  decoy ??= hashPassword(randomBytes(16).toString("hex"));
+  return decoy;
+};
