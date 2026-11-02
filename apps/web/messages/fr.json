@@ -43,7 +43,8 @@
     "reset": {
       "title": "Nouveau mot de passe",
       "submit": "Enregistrer et me connecter",
-      "invalid": "Ce lien ne fonctionne plus (déjà utilisé ou expiré), ou le mot de passe fait moins de {min} caractères.",
+      "invalid": "Ce lien ne fonctionne plus (déjà utilisé ou expiré). Demandez-en un nouveau.",
+      "invalidPassword": "Le mot de passe doit faire entre {min} et {max} caractères.",
       "missingLink": "Ce lien est incomplet. Ouvrez celui reçu par email, ou demandez-en un nouveau.",
       "askAgain": "Demander un nouveau lien"
     }

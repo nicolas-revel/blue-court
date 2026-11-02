@@ -41,13 +41,7 @@ export function ResetPasswordForm({ apiUrl }: { apiUrl: string }) {
         window.location.assign("/organizer");
         return;
       }
-      const message =
-        response.status === 429
-          ? "errors.tooManyAttempts"
-          : response.status === 400
-            ? "reset.invalid"
-            : "errors.unknown";
-      setError(t(message, { min: PASSWORD_MIN_LENGTH }));
+      setError(t(await errorKey(response), { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH }));
     } catch {
       setError(t("errors.network"));
     }
@@ -95,4 +89,17 @@ export function ResetPasswordForm({ apiUrl }: { apiUrl: string }) {
       </p>
     </main>
   );
+}
+
+/** The API answers 400 both for a dead link and for a password outside the limits. */
+async function errorKey(response: Response): Promise<string> {
+  if (response.status === 429) return "errors.tooManyAttempts";
+  if (response.status !== 400) return "errors.unknown";
+  const body: unknown = await response.json().catch(() => null);
+  const isPassword =
+    typeof body === "object" &&
+    body !== null &&
+    "message" in body &&
+    body.message === "invalid password";
+  return isPassword ? "reset.invalidPassword" : "reset.invalid";
 }

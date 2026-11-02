@@ -190,7 +190,10 @@ export class AuthService {
     });
     if (typeof token !== "string") throw invalid;
     const tokenHash = hashToken(token);
-    const reset = await this.prisma.passwordReset.findUnique({ where: { tokenHash } });
+    // An expired link is refused here, before the slow hash; the delete below stays the gate.
+    const reset = await this.prisma.passwordReset.findFirst({
+      where: { tokenHash, expiresAt: { gt: now } },
+    });
     if (reset === null) throw invalid;
     // Hashed first, so the slow part stays outside the transaction.
     const passwordHash = await hashPassword(password);
