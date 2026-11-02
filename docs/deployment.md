@@ -11,7 +11,7 @@ docker compose up --build
 
 The web app is on http://localhost:3000 and the API on http://localhost:4000. The API applies pending database migrations when it starts.
 
-To work on the code without the images, start only the database (`docker compose up db`), then run `pnpm --filter @blue-court/api start` with `DATABASE_URL` set to `postgres://blue-court:<password>@localhost:5432/blue-court`, and `pnpm --filter @blue-court/web dev`.
+To work on the code without the images, start only the database (`docker compose up db`), then run `pnpm --filter @blue-court/api start` with `DATABASE_URL` set to `postgres://blue-court:<password>@localhost:5432/blue-court`, and `pnpm --filter @blue-court/web dev` (the web app finds the API on http://localhost:4000 by default; `API_URL` and `PUBLIC_API_URL` change it). Create an organizer account at http://localhost:3000/organizer/signup.
 
 ## Server
 
@@ -32,6 +32,6 @@ tournois.example.fr {
 }
 ```
 
-In `.env` on the server, set a strong `POSTGRES_PASSWORD` made of letters and digits only, as it goes into the database URL (`openssl rand -hex 24`) (Compose refuses to start without `.env`, and Postgres without a password), set `WEB_ORIGIN` to the public address, and change the `*_PORT` values if another service already uses them.
+In `.env` on the server, set a strong `POSTGRES_PASSWORD` made of letters and digits only, as it goes into the database URL (`openssl rand -hex 24`) (Compose refuses to start without `.env`, and Postgres without a password), set `WEB_ORIGIN` to the public address (`https://tournois.example.fr`, which also makes the session cookie HTTPS-only), set `PUBLIC_API_URL` to that address followed by `/api` (`https://tournois.example.fr/api`), and change the `*_PORT` values if another service already uses them.
 
-The API has no authentication yet: anyone who reaches it can create tournaments. Keep it off the public internet until accounts land (#22): until then, leave the `/api/*` and `/socket.io/*` blocks out of the Caddy config so that only the web app is public.
+Every API route except the health check, sign-up and sign-in needs an organizer session, and so does the socket (see [specs/accounts.md](specs/accounts.md)). Sign-up is open: anyone who reaches the site can create an organizer account.

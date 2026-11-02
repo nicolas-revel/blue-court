@@ -1,5 +1,3 @@
-import "reflect-metadata";
-import type { AddressInfo } from "node:net";
 import {
   FFVB_MATCH_RULES,
   FFVB_RANKING_POINTS,
@@ -7,41 +5,12 @@ import {
   type Phase,
   type Team,
 } from "@blue-court/engine";
-import { BadRequestException, type INestApplication } from "@nestjs/common";
-import { Test } from "@nestjs/testing";
+import { BadRequestException } from "@nestjs/common";
 import fc from "fast-check";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AppModule } from "../app.module.js";
-import { PrismaService } from "../prisma.service.js";
+import { send, signUp, startTestApp, type TestApp } from "../testing/test-app.js";
 import { TournamentsService } from "./tournaments.service.js";
-
-interface Row {
-  id: string;
-  name: string;
-  teams: unknown;
-  phases: unknown;
-  seed: number;
-  createdAt: Date;
-}
-
-/** Just enough of the Prisma client for the tournament routes, kept in memory. */
-function memoryPrisma() {
-  const rows: Row[] = [];
-  return {
-    tournament: {
-      create: async ({ data }: { data: Omit<Row, "id" | "createdAt"> }) => {
-        const row = { ...data, id: `t${rows.length + 1}`, createdAt: new Date() };
-        rows.push(row);
-        return row;
-      },
-      findMany: async () => rows.map(({ id, name }) => ({ id, name })).reverse(),
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        rows.find((row) => row.id === where.id) ?? null,
-    },
-    $disconnect: async () => {},
-  };
-}
 
 const teams: Team[] = Array.from({ length: 4 }, (_, i) => ({
   id: `team${i + 1}`,
@@ -60,31 +29,24 @@ const pools: Phase = {
 };
 
 describe("tournaments API", () => {
-  let app: INestApplication;
+  let test: TestApp;
   let url: string;
+  let cookie: string;
 
   beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService)
-      .useValue(memoryPrisma())
-      .compile();
-    app = moduleRef.createNestApplication();
-    await app.listen(0);
-    url = `http://localhost:${(app.getHttpServer().address() as AddressInfo).port}`;
+    test = await startTestApp();
+    url = test.url;
+    cookie = await signUp(url);
   });
 
   afterEach(async () => {
-    await app.close();
+    await test.app.close();
   });
 
-  const post = (body: unknown) =>
-    fetch(`${url}/tournaments`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+  const post = (body: unknown, as = cookie) => send(`${url}/tournaments`, "POST", body, as);
+  const get = (path: string, as = cookie) => send(`${url}${path}`, "GET", undefined, as);
 
-  it("answers the health check", async () => {
+  it("answers the health check without an account", async () => {
     const response = await fetch(`${url}/health`);
     expect(await response.json()).toEqual({ status: "ok" });
   });
@@ -96,10 +58,24 @@ describe("tournaments API", () => {
     expect(tournament).toMatchObject({ name: "Club day", teams, phases: [pools] });
     expect(Number.isInteger(tournament.seed)).toBe(true);
 
-    expect(await (await fetch(`${url}/tournaments`)).json()).toEqual([
+    expect(await (await get("/tournaments")).json()).toEqual([
       { id: tournament.id, name: "Club day" },
     ]);
-    expect(await (await fetch(`${url}/tournaments/${tournament.id}`)).json()).toEqual(tournament);
+    expect(await (await get(`/tournaments/${tournament.id}`)).json()).toEqual(tournament);
+  });
+
+  it("keeps each organizer's tournaments to themselves", async () => {
+    const tournament = await (await post({ name: "Mine", teams, phases: [pools] })).json();
+    const other = await signUp(url);
+    expect(await (await get("/tournaments", other)).json()).toEqual([]);
+    expect((await get(`/tournaments/${tournament.id}`, other)).status).toBe(404);
+  });
+
+  it("refuses every tournament route without a session", async () => {
+    expect((await post({ name: "x", teams, phases: [pools] }, "")).status).toBe(401);
+    expect((await get("/tournaments", "")).status).toBe(401);
+    expect((await get("/tournaments/t1", "")).status).toBe(401);
+    expect(test.db.tournaments).toEqual([]);
   });
 
   it("refuses settings the engine rejects, with its error codes", async () => {
@@ -117,7 +93,7 @@ describe("tournaments API", () => {
   });
 
   it("answers any body with a stored tournament or a 400, never a crash", async () => {
-    const service = app.get(TournamentsService);
+    const service = test.app.get(TournamentsService);
     const team = fc.record({ id: fc.string(), name: fc.string() });
     // A valid phase with one setting replaced by any JSON value.
     const mutatedPhase = fc
@@ -136,7 +112,7 @@ describe("tournaments API", () => {
     await fc.assert(
       fc.asyncProperty(body, async (input) => {
         try {
-          const { seed } = await service.create(input);
+          const { seed } = await service.create("o1", input);
           expect(Number.isInteger(seed) && seed >= 0 && seed < 2 ** 31).toBe(true);
         } catch (error) {
           expect(error).toBeInstanceOf(BadRequestException);
@@ -147,15 +123,23 @@ describe("tournaments API", () => {
   });
 
   it("answers 404 for an unknown tournament", async () => {
-    expect((await fetch(`${url}/tournaments/nope`)).status).toBe(404);
+    expect((await get("/tournaments/nope")).status).toBe(404);
   });
 
-  it("pushes new tournaments to connected screens", async () => {
-    const socket = io(url, { transports: ["websocket"] });
-    await new Promise<void>((resolve) => socket.on("connect", resolve));
-    const received = new Promise((resolve) => socket.on("tournament.created", resolve));
+  it("pushes new tournaments to their organizer's screens only", async () => {
+    const connect = (as: string) => {
+      const socket = io(url, { transports: ["websocket"], extraHeaders: { cookie: as } });
+      return new Promise<typeof socket>((resolve) => socket.on("connect", () => resolve(socket)));
+    };
+    const mine = await connect(cookie);
+    const theirs = await connect(await signUp(url));
+    const heard: unknown[] = [];
+    theirs.on("tournament.created", (event) => heard.push(event));
+    const received = new Promise((resolve) => mine.on("tournament.created", resolve));
     const tournament = await (await post({ name: "Live", teams, phases: [pools] })).json();
     expect(await received).toEqual({ id: tournament.id, name: "Live" });
-    socket.close();
+    expect(heard).toEqual([]);
+    mine.close();
+    theirs.close();
   });
 });

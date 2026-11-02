@@ -1,6 +1,6 @@
 # Out of scope for v1 and open questions
 
-Not in v1: registration payments, player accounts and history across tournaments, season-long club ranking, full offline mode.
+Not in v1: registration payments, forgotten password by email, player accounts and history across tournaments, season-long club ranking, full offline mode.
 
 ## Open questions
 

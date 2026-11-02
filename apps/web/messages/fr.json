@@ -6,6 +6,37 @@
   "home": {
     "tagline": "Gestionnaire de tournois de volley",
     "intro": "Poules, tableaux, planning des terrains et table de marque : tout se règle selon votre club.",
-    "start": "Créer un tournoi"
+    "start": "Espace organisateur"
+  },
+  "auth": {
+    "name": "Nom",
+    "email": "Email",
+    "password": "Mot de passe",
+    "passwordHint": "10 caractères minimum.",
+    "login": {
+      "title": "Connexion",
+      "submit": "Se connecter",
+      "switch": "Pas encore de compte ? Créer un compte"
+    },
+    "signup": {
+      "title": "Créer un compte organisateur",
+      "submit": "Créer mon compte",
+      "switch": "Déjà un compte ? Se connecter"
+    },
+    "errors": {
+      "invalid": "Vérifiez les champs : email valide, nom renseigné, mot de passe de 10 caractères minimum.",
+      "wrongCredentials": "Email ou mot de passe incorrect.",
+      "emailTaken": "Un compte utilise déjà cet email.",
+      "tooManyAttempts": "Trop de tentatives. Réessayez dans une minute.",
+      "network": "Impossible de joindre le serveur. Vérifiez la connexion.",
+      "unknown": "Une erreur est survenue. Réessayez."
+    }
+  },
+  "organizer": {
+    "signedInAs": "Connecté en tant que {name}",
+    "signOut": "Se déconnecter",
+    "tournaments": "Mes tournois",
+    "noTournament": "Aucun tournoi pour l’instant.",
+    "create": "Créer un tournoi"
   }
 }

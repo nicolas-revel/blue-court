@@ -11,11 +11,40 @@ datasource db {
 
 /// A tournament and its settings. Teams and phases are stored as the engine's JSON shapes.
 model Tournament {
-  id        String   @id @default(cuid())
-  name      String
-  teams     Json
-  phases    Json
+  id          String    @id @default(cuid())
+  name        String
+  teams       Json
+  phases      Json
   /// Drawn once at creation; every draw of the engine derives from it.
-  seed      Int
-  createdAt DateTime @default(now())
+  seed        Int
+  createdAt   DateTime  @default(now())
+  /// The organizer who created it; only they can read or change it.
+  organizer   Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  organizerId String
+
+  @@index([organizerId])
+}
+
+/// Someone who signs in to create and run tournaments.
+model Organizer {
+  id           String       @id @default(cuid())
+  /// Stored lowercase, so sign-in does not depend on case.
+  email        String       @unique
+  name         String
+  /// scrypt hash with its salt and cost settings (see auth/password.ts).
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  sessions     Session[]
+  tournaments  Tournament[]
+}
+
+/// A signed-in browser. The cookie holds a random token; only its SHA-256 hash is stored.
+model Session {
+  id          String    @id
+  organizer   Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  organizerId String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([organizerId])
 }
