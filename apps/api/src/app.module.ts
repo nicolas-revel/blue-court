@@ -11,10 +11,13 @@ import { PrismaService } from "./prisma.service.js";
 import { TournamentsController } from "./tournaments/tournaments.controller.js";
 import { TournamentsService } from "./tournaments/tournaments.service.js";
 
+/** Attempts allowed per address on each public auth route (docs/specs/accounts.md). */
+const AUTH_ATTEMPTS = { ttl: 60_000, limit: 10 };
+
 @Module({
   imports: [
-    // Sign-up, sign-in and password reset only (see AuthController): 10 attempts per minute and per address.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
+    // Applied to sign-up, sign-in and password reset only (see AuthController).
+    ThrottlerModule.forRoot([AUTH_ATTEMPTS]),
   ],
   controllers: [HealthController, AuthController, TournamentsController],
   providers: [
