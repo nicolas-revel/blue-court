@@ -68,7 +68,7 @@ export function memoryPrisma() {
     return { count };
   };
   const tournaments: Tournament[] = [];
-  return {
+  const client = {
     organizers,
     sessions,
     passwordResets,
@@ -128,10 +128,13 @@ export function memoryPrisma() {
           .filter(matches(where))
           .map(({ id, name }) => ({ id, name }))
           .reverse(),
-      findUnique: async ({ where }: Where<Tournament>) => tournaments.find(matches(where)) ?? null,
+      findFirst: async ({ where }: Where<Tournament>) => tournaments.find(matches(where)) ?? null,
     },
     $disconnect: async () => {},
   };
+  // Runs the callback on the same in-memory client; nothing is rolled back.
+  const $transaction = <T>(run: (tx: typeof client) => Promise<T>): Promise<T> => run(client);
+  return Object.assign(client, { $transaction });
 }
 
 export interface TestApp {

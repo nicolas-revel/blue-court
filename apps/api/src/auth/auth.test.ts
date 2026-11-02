@@ -1,5 +1,6 @@
 import { RequestMethod } from "@nestjs/common";
-import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants.js";
+import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants.js";
+import { ThrottlerGuard } from "@nestjs/throttler";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../app.module.js";
@@ -298,7 +299,7 @@ describe("forgotten password", () => {
 });
 
 describe("public routes", () => {
-  it("are only the health check, sign-up, sign-in and password reset", () => {
+  it("are only the health check, sign-up, sign-in and password reset, all rate limited", () => {
     const controllers: (new (...args: never[]) => object)[] = Reflect.getMetadata(
       "controllers",
       AppModule,
@@ -313,7 +314,11 @@ describe("public routes", () => {
         if (path === undefined) return [];
         if (!classIsPublic && Reflect.getMetadata(IS_PUBLIC, handler) !== true) return [];
         const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as number];
-        return [`${method} /${[base, path].filter((part) => part !== "/").join("/")}`];
+        const route = `${method} /${[base, path].filter((part) => part !== "/").join("/")}`;
+        const guards: unknown[] = Reflect.getMetadata(GUARDS_METADATA, handler) ?? [];
+        // Every public route but the health check is rate limited.
+        if (route !== "GET /health") expect(guards, route).toContain(ThrottlerGuard);
+        return [route];
       });
     });
     expect(publicRoutes.sort()).toEqual([

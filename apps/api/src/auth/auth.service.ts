@@ -194,15 +194,22 @@ export class AuthService {
     if (reset === null) throw invalid;
     // Used once: the delete is the gate. Of two requests racing with the same link, only the one
     // whose delete removed the row goes on.
-    const { count } = await this.prisma.passwordReset.deleteMany({
-      where: { tokenHash, expiresAt: { gt: now } },
+    // Hashed first, so the slow part stays outside the transaction.
+    const passwordHash = await hashPassword(password);
+    // All or nothing: a failure leaves the link usable and the old password and sessions as
+    // they were.
+    const organizer = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.passwordReset.deleteMany({
+        where: { tokenHash, expiresAt: { gt: now } },
+      });
+      if (count === 0) throw invalid;
+      const updated = await tx.organizer.update({
+        where: { id: reset.organizerId },
+        data: { passwordHash },
+      });
+      await tx.session.deleteMany({ where: { organizerId: updated.id } });
+      return updated;
     });
-    if (count === 0) throw invalid;
-    const organizer = await this.prisma.organizer.update({
-      where: { id: reset.organizerId },
-      data: { passwordHash: await hashPassword(password) },
-    });
-    await this.prisma.session.deleteMany({ where: { organizerId: organizer.id } });
     return this.openSession(toOrganizer(organizer));
   }
 

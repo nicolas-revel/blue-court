@@ -126,9 +126,10 @@ export class TournamentsService {
 
   /** Another organizer's tournament is answered as not found, so its existence stays private. */
   async get(organizerId: string, id: string): Promise<StoredTournament> {
-    const row = await this.prisma.tournament.findUnique({ where: { id } });
-    if (row === null || row.organizerId !== organizerId)
+    const row = await this.prisma.tournament.findFirst({ where: { id, organizerId } });
+    if (row === null) {
       throw new NotFoundException(`tournament ${id} does not exist`);
+    }
     return toStored(row);
   }
 }
