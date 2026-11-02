@@ -6,7 +6,7 @@ Organizers create an account with an email and a password, then find their own t
 
 - **Who signs in**: organizers only. Score entry from a phone uses a court or match code (see [scoring.md](scoring.md)), not an account; it comes with score entry.
 - **Sign-up** is open to anyone: name, email and password. The account is signed in right away.
-- **Sign-in** with email and password. A wrong email and a wrong password get the same message, so the form does not reveal which emails have an account.
+- **Sign-in** with email and password. A wrong email and a wrong password get the same message. Sign-up still says when an email is already used, so it can tell whether an email has an account: with open sign-up and no email check, this is accepted, and the rate limit slows down anyone trying many emails.
 - **Ownership**: a tournament belongs to the organizer who created it. Other organizers cannot list it or open it: for them it does not exist.
 - **Sign-out** ends the session on that device, including its live updates.
 - **What stays public**: the home page, sign-up and sign-in. Everything else is closed by default, live updates included. The public view and the venue display will open their own read-only pages and routes when they are built.
