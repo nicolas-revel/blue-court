@@ -49,9 +49,8 @@ const logger = new Logger("TournamentsService");
 
 /**
  * The engine trusts the shapes it is given, so a team or phase missing a nested setting makes
- * it throw a TypeError. That is answered as a 400 but logged as an error, since an engine bug looks
- * the same (#23 moves this check into the engine);
- * any other error stays a 500.
+ * it throw a TypeError. That is answered as a 400 but logged as an error, since an engine bug
+ * looks the same (#23 moves this check into the engine). Any other error stays a 500.
  */
 const validate = (tournament: Tournament): ConfigValidation => {
   try {
