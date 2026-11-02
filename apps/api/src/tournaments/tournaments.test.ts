@@ -5,7 +5,7 @@ import {
   type Phase,
   type Team,
 } from "@blue-court/engine";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import fc from "fast-check";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -69,6 +69,32 @@ describe("tournaments API", () => {
     const other = await signUp(url);
     expect(await (await get("/tournaments", other)).json()).toEqual([]);
     expect((await get(`/tournaments/${tournament.id}`, other)).status).toBe(404);
+  });
+
+  it("only ever shows an organizer their own tournaments", async () => {
+    const service = test.app.get(TournamentsService);
+    // Each entry is the organizer who creates the next tournament.
+    const creators = fc.array(fc.constantFrom("o1", "o2", "o3"), { maxLength: 12 });
+    await fc.assert(
+      fc.asyncProperty(creators, async (owners) => {
+        test.db.tournaments.length = 0;
+        const created = [];
+        for (const owner of owners) {
+          const { id } = await service.create(owner, { name: "T", teams, phases: [pools] });
+          created.push({ id, owner });
+        }
+        for (const organizer of ["o1", "o2", "o3"]) {
+          const mine = created.filter(({ owner }) => owner === organizer).map(({ id }) => id);
+          const listed = (await service.list(organizer)).map(({ id }) => id);
+          expect(listed.sort()).toEqual(mine.sort());
+          for (const { id, owner } of created) {
+            if (owner === organizer) expect((await service.get(organizer, id)).id).toBe(id);
+            else await expect(service.get(organizer, id)).rejects.toThrow(NotFoundException);
+          }
+        }
+      }),
+      { numRuns: 50 },
+    );
   });
 
   it("refuses every tournament route without a session", async () => {
