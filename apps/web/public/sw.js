@@ -1,6 +1,6 @@
 // Network first: pages stay live during a tournament, and the last version of each page
 // visited is shown when the venue's connection drops.
-const CACHE = "blue-court-v1";
+const CACHE = "blue-court-v2";
 
 // The organizer area holds private data: it is never cached, so it cannot be shown to the
 // next person using the device, even after sign-out.

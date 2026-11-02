@@ -38,11 +38,11 @@ const navigation = (path: string) => {
 
 describe("service worker", () => {
   it("drops the caches of older versions when it activates", async () => {
-    const { listeners, deleted, scope } = loadWorker(["blue-court-v1", "blue-court-v0", "other"]);
+    const { listeners, deleted, scope } = loadWorker(["blue-court-v2", "blue-court-v1", "other"]);
     let done: Promise<unknown> = Promise.resolve();
     listeners.activate?.({ waitUntil: (promise: Promise<unknown>) => (done = promise) });
     await done;
-    expect(deleted).toEqual(["blue-court-v0", "other"]);
+    expect(deleted).toEqual(["blue-court-v1", "other"]);
     expect(scope.clients.claim).toHaveBeenCalled();
   });
 
