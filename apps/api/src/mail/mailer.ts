@@ -10,10 +10,9 @@ export interface Mail {
 /**
  * Sends emails through the SMTP server in `SMTP_URL` (for example
  * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, the
- * whole email is written to the log when that is allowed, so reset links can be followed
- * locally: outside production (`pnpm dev`), or with `MAIL_LOG_BODY=1` (local Docker Compose,
- * whose image runs with `NODE_ENV=production`). Otherwise only the recipient and subject are
- * logged: an email holds a reset link, which must never sit in a server log.
+ * whole email is written to the log only with `MAIL_LOG_BODY=1`, so reset links can be followed
+ * locally. Otherwise only the recipient and subject are logged: an email holds a reset link,
+ * which must never sit in a server log, so logging it takes an explicit opt-in.
  */
 @Injectable()
 export class Mailer {
@@ -27,7 +26,7 @@ export class Mailer {
     this.from = env.MAIL_FROM ?? "Blue Court <no-reply@localhost>";
     this.transport =
       env.SMTP_URL === undefined || env.SMTP_URL === "" ? undefined : createTransport(env.SMTP_URL);
-    this.logBody = env.MAIL_LOG_BODY === "1" || env.NODE_ENV !== "production";
+    this.logBody = env.MAIL_LOG_BODY === "1";
     if (this.transport === undefined && !this.logBody) {
       this.logger.warn("SMTP_URL is not set: password reset emails will not be sent.");
     }

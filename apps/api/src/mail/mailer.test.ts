@@ -24,17 +24,18 @@ describe("Mailer without SMTP_URL", () => {
     vi.restoreAllMocks();
   });
 
-  it("logs the whole email outside production", () => {
-    expect(logged({ NODE_ENV: "development" })).toContain("secret-token");
-  });
-
-  it("logs the whole email in production when MAIL_LOG_BODY=1 (local Compose)", () => {
+  it("logs the whole email with MAIL_LOG_BODY=1 (local use)", () => {
     expect(logged({ NODE_ENV: "production", MAIL_LOG_BODY: "1" })).toContain("secret-token");
   });
 
-  it("never logs the email body in production otherwise, and warns", () => {
-    for (const value of ["", "0"]) {
-      const output = logged({ NODE_ENV: "production", MAIL_LOG_BODY: value });
+  it("never logs the email body otherwise, whatever NODE_ENV says, and warns", () => {
+    for (const [nodeEnv, value] of [
+      ["production", ""],
+      ["production", "0"],
+      ["development", ""],
+      ["", "true"],
+    ]) {
+      const output = logged({ NODE_ENV: nodeEnv ?? "", MAIL_LOG_BODY: value ?? "" });
       expect(output).not.toContain("secret-token");
       expect(output).toContain("will not be sent");
       expect(output).toContain("coach@club.fr");
