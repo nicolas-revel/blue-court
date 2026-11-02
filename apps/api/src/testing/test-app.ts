@@ -22,8 +22,8 @@ interface Session {
 }
 
 interface PasswordReset {
-  id: string;
   organizerId: string;
+  tokenHash: string;
   expiresAt: Date;
   createdAt: Date;
 }
@@ -89,14 +89,20 @@ export function memoryPrisma() {
       },
     },
     passwordReset: {
-      create: async ({ data }: { data: Omit<PasswordReset, "createdAt"> }) => {
-        const row = { ...data, createdAt: new Date() };
-        passwordResets.push(row);
-        return row;
+      create: async ({ data }: { data: PasswordReset }) => {
+        const taken = passwordResets.some(
+          (row) => row.organizerId === data.organizerId || row.tokenHash === data.tokenHash,
+        );
+        if (taken) throw { code: "P2002" };
+        passwordResets.push({ ...data });
+        return data;
+      },
+      updateMany: async ({ where, data }: Where<PasswordReset> & { data: PasswordReset }) => {
+        const rows = passwordResets.filter(matches(where));
+        for (const row of rows) Object.assign(row, data);
+        return { count: rows.length };
       },
       findUnique: async ({ where }: Where<PasswordReset>) =>
-        passwordResets.find(matches(where)) ?? null,
-      findFirst: async ({ where }: Where<PasswordReset>) =>
         passwordResets.find(matches(where)) ?? null,
       deleteMany: async ({ where }: Where<PasswordReset>) => deleteWhere(passwordResets, where),
     },

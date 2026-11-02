@@ -138,31 +138,42 @@ export class AuthService {
   private async sendResetLink(email: string): Promise<void> {
     const organizer = await this.prisma.organizer.findUnique({ where: { email } });
     if (organizer === null) return;
-    // One email a minute per account at most: this bounds the emails and how often someone else
-    // can replace the pending link (the trade-off is in docs/specs/accounts.md).
-    const recent = await this.prisma.passwordReset.findFirst({
-      where: {
-        organizerId: organizer.id,
-        createdAt: { gt: new Date(Date.now() - RESET_RESEND_SECONDS * 1000) },
-      },
-    });
-    if (recent !== null) return;
-    // Only the latest link works.
-    await this.prisma.passwordReset.deleteMany({ where: { organizerId: organizer.id } });
     const token = newToken();
-    await this.prisma.passwordReset.create({
-      data: {
-        id: hashToken(token),
-        organizerId: organizer.id,
-        expiresAt: new Date(Date.now() + RESET_LINK_MINUTES * 60 * 1000),
-      },
-    });
+    if (!(await this.replaceResetLink(organizer.id, hashToken(token)))) return;
     // The token sits after `#`, which browsers never send to a server or in a Referer header.
     const link = `${webOrigin}/organizer/reset-password#${token}`;
     await this.mailer.send({
       to: organizer.email,
       ...resetMail({ name: organizer.name, link, minutes: RESET_LINK_MINUTES }),
     });
+  }
+
+  /**
+   * Stores a new link for the organizer, replacing the previous one, unless that one is less
+   * than a minute old. Each path is a single write, so of two requests racing, only one stores a
+   * link and sends an email. The one-a-minute limit bounds the emails and how often someone else
+   * can replace the pending link (the trade-off is in docs/specs/accounts.md).
+   */
+  private async replaceResetLink(organizerId: string, tokenHash: string): Promise<boolean> {
+    const now = Date.now();
+    const link = {
+      tokenHash,
+      expiresAt: new Date(now + RESET_LINK_MINUTES * 60 * 1000),
+      createdAt: new Date(now),
+    };
+    const { count } = await this.prisma.passwordReset.updateMany({
+      where: { organizerId, createdAt: { lte: new Date(now - RESET_RESEND_SECONDS * 1000) } },
+      data: link,
+    });
+    if (count === 1) return true;
+    try {
+      await this.prisma.passwordReset.create({ data: { organizerId, ...link } });
+      return true;
+    } catch (error) {
+      // A link less than a minute old already exists, or another request just stored one.
+      if (isUniqueViolation(error)) return false;
+      throw error;
+    }
   }
 
   /**
@@ -178,16 +189,15 @@ export class AuthService {
       message: "this reset link is invalid or has expired",
     });
     if (typeof token !== "string") throw invalid;
-    const id = hashToken(token);
-    const reset = await this.prisma.passwordReset.findUnique({ where: { id } });
+    const tokenHash = hashToken(token);
+    const reset = await this.prisma.passwordReset.findUnique({ where: { tokenHash } });
     if (reset === null) throw invalid;
     // Used once: the delete is the gate. Of two requests racing with the same link, only the one
     // whose delete removed the row goes on.
     const { count } = await this.prisma.passwordReset.deleteMany({
-      where: { id, expiresAt: { gt: now } },
+      where: { tokenHash, expiresAt: { gt: now } },
     });
     if (count === 0) throw invalid;
-    await this.prisma.passwordReset.deleteMany({ where: { organizerId: reset.organizerId } });
     const organizer = await this.prisma.organizer.update({
       where: { id: reset.organizerId },
       data: { passwordHash: await hashPassword(password) },

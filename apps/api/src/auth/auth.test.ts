@@ -218,7 +218,7 @@ describe("forgotten password", () => {
     expect(asked.status).toBe(202);
     const token = await tokenFromMail();
     expect(test.mails[0]?.to).toBe("coach@club.fr");
-    expect(test.db.passwordResets.map((reset) => reset.id)).not.toContain(token);
+    expect(test.db.passwordResets.map((reset) => reset.tokenHash)).not.toContain(token);
 
     const reset = await post("/auth/password-reset/confirm", { token, password: newPassword });
     expect(reset.status).toBe(200);
@@ -259,6 +259,17 @@ describe("forgotten password", () => {
     const late = await tokenFromMail();
     for (const reset of test.db.passwordResets) reset.expiresAt = new Date(Date.now() - 1000);
     expect((await confirm(late)).status).toBe(400);
+  });
+
+  it("stores one link and sends one email when two requests race", async () => {
+    await signUp(url, "coach@club.fr");
+    const auth = test.app.get(AuthService);
+    auth.requestPasswordReset({ email: "coach@club.fr" });
+    auth.requestPasswordReset({ email: "coach@club.fr" });
+    await vi.waitFor(() => expect(test.mails).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(test.mails).toHaveLength(1);
+    expect(test.db.passwordResets).toHaveLength(1);
   });
 
   it("lets only one of two simultaneous uses of a link through", async () => {
