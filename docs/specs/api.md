@@ -26,7 +26,7 @@ Every tournament route needs a session, and only sees the signed-in organizer's 
 
 ## Live updates
 
-The socket accepts a connection only with a valid session cookie. An organizer's screens receive a `tournament.created` event, with the id and name, whenever that organizer creates a tournament.
+The socket accepts a connection only with a valid session cookie, and from a browser only when it comes from the web app's address. An organizer's screens receive a `tournament.created` event, with the id and name, whenever that organizer creates a tournament.
 
 ## Access
 

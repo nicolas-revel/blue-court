@@ -38,6 +38,10 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
 
   afterInit(server: Server): void {
     server.use((socket, next) => {
+      // socket.io's CORS setting covers polling only: the WebSocket upgrade is checked here.
+      // Browsers always send an Origin; other clients (tests, tools) have no cookie to abuse.
+      const { origin } = socket.handshake.headers;
+      if (origin !== undefined && origin !== webOrigin) return next(new Error("forbidden origin"));
       this.auth
         .check(readSessionToken(socket.handshake.headers.cookie))
         .then((signedIn) => {

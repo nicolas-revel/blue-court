@@ -126,6 +126,18 @@ describe("organizer accounts", () => {
     expect(await disconnected).toBe("io server disconnect");
   });
 
+  it("refuses live updates opened from another site, even with a session", async () => {
+    const cookie = await signUp(url);
+    const socket = io(url, {
+      transports: ["websocket"],
+      reconnection: false,
+      extraHeaders: { cookie, origin: "https://elsewhere.example" },
+    });
+    const error = await new Promise<Error>((resolve) => socket.on("connect_error", resolve));
+    expect(error.message).toBe("forbidden origin");
+    socket.close();
+  });
+
   it("purges expired sessions and disconnects their live updates", async () => {
     const cookie = await signUp(url);
     const socket = io(url, {
