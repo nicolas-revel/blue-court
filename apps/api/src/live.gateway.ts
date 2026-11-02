@@ -1,10 +1,5 @@
 import { Logger, type OnModuleDestroy } from "@nestjs/common";
-import {
-  type OnGatewayConnection,
-  type OnGatewayInit,
-  WebSocketGateway,
-  WebSocketServer,
-} from "@nestjs/websockets";
+import { type OnGatewayInit, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
 import { AuthService } from "./auth/auth.service.js";
 import { readSessionToken } from "./auth/session-cookie.js";
@@ -28,7 +23,7 @@ interface SocketData {
  * hears about their own tournaments.
  */
 @WebSocketGateway({ cors: { origin: webOrigin, credentials: true } })
-export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModuleDestroy {
+export class LiveGateway implements OnGatewayInit, OnModuleDestroy {
   @WebSocketServer()
   private readonly server: Server | undefined;
 
@@ -59,15 +54,13 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
             sessionId: signedIn.sessionId,
           };
           socket.data = data;
-          next();
+          // Joined before the connection completes, so no event sent right after is missed.
+          return Promise.resolve(
+            socket.join([organizerRoom(data.organizerId), sessionRoom(data.sessionId)]),
+          ).then(() => next());
         })
         .catch(next);
     });
-  }
-
-  async handleConnection(socket: Socket): Promise<void> {
-    const { organizerId, sessionId } = socket.data as SocketData;
-    await socket.join([organizerRoom(organizerId), sessionRoom(sessionId)]);
   }
 
   onModuleDestroy(): void {
