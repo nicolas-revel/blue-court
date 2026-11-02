@@ -91,6 +91,11 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     this.server?.to(organizerRoom(organizerId)).emit(event, payload);
   }
 
+  /** Disconnects every screen of an organizer whose sessions all ended. */
+  endOrganizer(organizerId: string): void {
+    this.server?.in(organizerRoom(organizerId)).disconnectSockets(true);
+  }
+
   /** Disconnects the screens opened with a session that just ended. */
   endSession(sessionId: string): void {
     this.server?.in(sessionRoom(sessionId)).disconnectSockets(true);

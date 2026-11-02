@@ -38,6 +38,29 @@ export class AuthController {
     return this.started(await this.auth.signIn(body), response);
   }
 
+  /** Always answers 202, whether or not the email has an account. */
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @HttpCode(202)
+  @Post("password-reset")
+  requestPasswordReset(@Body() body: unknown): void {
+    this.auth.requestPasswordReset(body);
+  }
+
+  /** Sets the new password, ends every other session of the account and signs in here. */
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @HttpCode(200)
+  @Post("password-reset/confirm")
+  async resetPassword(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ): Promise<Organizer> {
+    const session = await this.auth.resetPassword(body);
+    this.live.endOrganizer(session.organizer.id);
+    return this.started(session, response);
+  }
+
   /** Ends the session, here and on the screens it opened. */
   @HttpCode(204)
   @Post("logout")

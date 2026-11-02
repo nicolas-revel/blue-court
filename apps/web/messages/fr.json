@@ -16,7 +16,8 @@
     "login": {
       "title": "Connexion",
       "submit": "Se connecter",
-      "switch": "Pas encore de compte ? Créer un compte"
+      "switch": "Pas encore de compte ? Créer un compte",
+      "forgot": "Mot de passe oublié ?"
     },
     "signup": {
       "title": "Créer un compte organisateur",
@@ -30,6 +31,21 @@
       "tooManyAttempts": "Trop de tentatives. Réessayez dans une minute.",
       "network": "Impossible de joindre le serveur. Vérifiez la connexion.",
       "unknown": "Une erreur est survenue. Réessayez."
+    },
+    "newPassword": "Nouveau mot de passe",
+    "backToLogin": "Retour à la connexion",
+    "forgot": {
+      "title": "Mot de passe oublié",
+      "intro": "Indiquez l’email de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.",
+      "submit": "Envoyer le lien",
+      "sent": "Si un compte utilise cet email, un lien vient de lui être envoyé. Il fonctionne pendant une heure."
+    },
+    "reset": {
+      "title": "Nouveau mot de passe",
+      "submit": "Enregistrer et me connecter",
+      "invalid": "Ce lien ne fonctionne plus (déjà utilisé ou expiré), ou le mot de passe fait moins de {min} caractères.",
+      "missingLink": "Ce lien est incomplet. Ouvrez celui reçu par email, ou demandez-en un nouveau.",
+      "askAgain": "Demander un nouveau lien"
     }
   },
   "organizer": {

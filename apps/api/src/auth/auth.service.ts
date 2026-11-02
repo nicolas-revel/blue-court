@@ -3,8 +3,11 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from "@nestjs/common";
+import { webOrigin } from "../config.js";
+import { Mailer } from "../mailer.js";
 import { PrismaService } from "../prisma.service.js";
 import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits.js";
 import { decoyHash, hashPassword, verifyPassword } from "./password.js";
@@ -31,6 +34,11 @@ export interface NewSession extends SignedIn {
 const EMAIL_MAX_LENGTH = 254;
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** How long a password reset link works. */
+export const RESET_LINK_MINUTES = 60;
+
+const newToken = (): string => randomBytes(32).toString("base64url");
+
 const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
 
 const asRecord = (body: unknown): Record<string, unknown> =>
@@ -48,9 +56,36 @@ const toOrganizer = ({ id, email, name }: Organizer): Organizer => ({ id, email,
 const isUniqueViolation = (error: unknown): boolean =>
   typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002";
 
+const isValidPassword = (password: unknown): password is string =>
+  typeof password === "string" &&
+  password.length >= PASSWORD_MIN_LENGTH &&
+  password.length <= PASSWORD_MAX_LENGTH;
+
+const PASSWORD_RULE = `password: between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`;
+
+/** The reset email, in French like the rest of the product. */
+const resetMail = (to: string, name: string, link: string) => ({
+  to,
+  subject: "Blue Court : réinitialiser votre mot de passe",
+  text: [
+    `Bonjour ${name},`,
+    "",
+    "Pour choisir un nouveau mot de passe, ouvrez ce lien :",
+    link,
+    "",
+    `Il fonctionne pendant ${RESET_LINK_MINUTES} minutes et une seule fois.`,
+    "Si vous n'avez rien demandé, ignorez cet email : votre mot de passe ne change pas.",
+  ].join("\n"),
+});
+
+const logger = new Logger("AuthService");
+
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailer: Mailer,
+  ) {}
 
   /** Creates an organizer account and signs it in. */
   async signUp(body: unknown): Promise<NewSession> {
@@ -62,13 +97,7 @@ export class AuthService {
     if (validName.length === 0 || validName.length > NAME_MAX_LENGTH) {
       errors.push(`name: between 1 and ${NAME_MAX_LENGTH} characters`);
     }
-    if (
-      typeof password !== "string" ||
-      password.length < PASSWORD_MIN_LENGTH ||
-      password.length > PASSWORD_MAX_LENGTH
-    ) {
-      errors.push(`password: between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`);
-    }
+    if (!isValidPassword(password)) errors.push(PASSWORD_RULE);
     if (validEmail === undefined || typeof password !== "string" || errors.length > 0) {
       throw new BadRequestException({ message: "invalid account", errors });
     }
@@ -103,6 +132,65 @@ export class AuthService {
     return this.openSession(toOrganizer(organizer));
   }
 
+  /**
+   * Emails a reset link when the email has an account. The answer is the same either way, and
+   * the email is sent in the background, so neither the answer nor its timing tells whether the
+   * account exists.
+   */
+  requestPasswordReset(body: unknown): void {
+    const email = normalizeEmail(asRecord(body).email);
+    if (email === undefined) {
+      throw new BadRequestException({ message: "invalid email", errors: ["email: not valid"] });
+    }
+    void this.sendResetLink(email).catch((error: unknown) =>
+      logger.error(`password reset email failed: ${String(error)}`),
+    );
+  }
+
+  private async sendResetLink(email: string): Promise<void> {
+    const organizer = await this.prisma.organizer.findUnique({ where: { email } });
+    if (organizer === null) return;
+    // Only the latest link works.
+    await this.prisma.passwordReset.deleteMany({ where: { organizerId: organizer.id } });
+    const token = newToken();
+    await this.prisma.passwordReset.create({
+      data: {
+        id: hashToken(token),
+        organizerId: organizer.id,
+        expiresAt: new Date(Date.now() + RESET_LINK_MINUTES * 60 * 1000),
+      },
+    });
+    // The token sits after `#`, which browsers never send to a server or in a Referer header.
+    const link = `${webOrigin}/organizer/reset-password#${token}`;
+    await this.mailer.send(resetMail(organizer.email, organizer.name, link));
+  }
+
+  /**
+   * Sets a new password from a reset link. Every session of the account ends, and a new one
+   * opens on this device.
+   */
+  async resetPassword(body: unknown, now = new Date()): Promise<NewSession> {
+    const { token, password } = asRecord(body);
+    if (!isValidPassword(password)) {
+      throw new BadRequestException({ message: "invalid password", errors: [PASSWORD_RULE] });
+    }
+    const reset =
+      typeof token === "string"
+        ? await this.prisma.passwordReset.findUnique({ where: { id: hashToken(token) } })
+        : null;
+    if (reset === null || reset.expiresAt <= now) {
+      throw new BadRequestException({ message: "this reset link is invalid or has expired" });
+    }
+    // Used once: deleted before anything else, so a second request with it fails.
+    await this.prisma.passwordReset.deleteMany({ where: { organizerId: reset.organizerId } });
+    const organizer = await this.prisma.organizer.update({
+      where: { id: reset.organizerId },
+      data: { passwordHash: await hashPassword(password) },
+    });
+    await this.prisma.session.deleteMany({ where: { organizerId: organizer.id } });
+    return this.openSession(toOrganizer(organizer));
+  }
+
   async signOut(sessionId: string): Promise<void> {
     await this.prisma.session.deleteMany({ where: { id: sessionId } });
   }
@@ -113,6 +201,7 @@ export class AuthService {
    */
   async sweep(sessionIds: readonly string[], now = new Date()): Promise<string[]> {
     await this.prisma.session.deleteMany({ where: { expiresAt: { lte: now } } });
+    await this.prisma.passwordReset.deleteMany({ where: { expiresAt: { lte: now } } });
     const alive = await this.prisma.session.findMany({
       where: { id: { in: [...sessionIds] } },
       select: { id: true },
@@ -138,7 +227,7 @@ export class AuthService {
   }
 
   private async openSession(organizer: Organizer): Promise<NewSession> {
-    const token = randomBytes(32).toString("base64url");
+    const token = newToken();
     const maxAgeSeconds = SESSION_DAYS * 24 * 60 * 60;
     const sessionId = hashToken(token);
     await this.prisma.session.create({

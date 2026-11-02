@@ -7,6 +7,8 @@ import fr from "../../../messages/fr.json";
 import * as limits from "../../lib/account-limits";
 import { TournamentList } from "./(signed-in)/tournament-list";
 import { AuthForm } from "./auth-form";
+import { ForgotPasswordForm } from "./forgot-password/forgot-password-form";
+import { ResetPasswordForm } from "./reset-password/reset-password-form";
 
 const render = (node: ReactNode) =>
   renderToStaticMarkup(
@@ -35,6 +37,22 @@ describe("sign-in and sign-up forms", () => {
 
   it("uses the API's field limits", () => {
     expect(limits).toEqual(apiLimits);
+  });
+});
+
+describe("forgotten password", () => {
+  it("is offered from the sign-in form", () => {
+    expect(render(<AuthForm mode="login" apiUrl="http://api" />)).toContain(
+      'href="/organizer/forgot-password"',
+    );
+    expect(render(<AuthForm mode="signup" apiUrl="http://api" />)).not.toContain("forgot-password");
+  });
+
+  it("asks for the email, then for a new password long enough", () => {
+    expect(render(<ForgotPasswordForm apiUrl="http://api" />)).toContain(fr.auth.forgot.submit);
+    const html = render(<ResetPasswordForm apiUrl="http://api" />);
+    expect(html).toContain(fr.auth.reset.title);
+    expect(html).toContain(`minLength="${limits.PASSWORD_MIN_LENGTH}"`);
   });
 });
 

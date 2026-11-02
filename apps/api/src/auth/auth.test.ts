@@ -1,7 +1,7 @@
 import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants.js";
 import { io } from "socket.io-client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../app.module.js";
 import { LiveGateway } from "../live.gateway.js";
 import { cookieOf, send, signUp, startTestApp, type TestApp } from "../testing/test-app.js";
@@ -169,8 +169,90 @@ describe("organizer accounts", () => {
   });
 });
 
+describe("forgotten password", () => {
+  let test: TestApp;
+  let url: string;
+
+  beforeEach(async () => {
+    test = await startTestApp();
+    url = test.url;
+  });
+
+  afterEach(async () => {
+    await test.app.close();
+  });
+
+  const post = (path: string, body?: unknown, cookie?: string) =>
+    send(`${url}${path}`, "POST", body, cookie);
+  const me = (cookie: string) => send(`${url}/auth/me`, "GET", undefined, cookie);
+  /** Waits for the reset email sent in the background, and returns the token from its link. */
+  const tokenFromMail = async (): Promise<string> => {
+    await vi.waitFor(() => expect(test.mails).not.toHaveLength(0));
+    const link = /https?:\/\/\S+/.exec(test.mails.at(-1)?.text ?? "")?.[0] ?? "";
+    expect(link).toMatch(/^http:\/\/localhost:3000\/organizer\/reset-password#[\w-]{43}$/);
+    return link.split("#")[1] ?? "";
+  };
+  const newPassword = "a brand new password";
+
+  it("emails a link that sets a new password, ends other sessions and signs in", async () => {
+    const oldSession = await signUp(url, "coach@club.fr");
+    const asked = await post("/auth/password-reset", { email: "Coach@Club.fr" });
+    expect(asked.status).toBe(202);
+    const token = await tokenFromMail();
+    expect(test.mails[0]?.to).toBe("coach@club.fr");
+    expect(test.db.passwordResets.map((reset) => reset.id)).not.toContain(token);
+
+    const reset = await post("/auth/password-reset/confirm", { token, password: newPassword });
+    expect(reset.status).toBe(200);
+    expect((await me(cookieOf(reset))).status).toBe(200);
+    expect((await me(oldSession)).status).toBe(401);
+
+    const signIn = (password: string) => post("/auth/login", { email: "coach@club.fr", password });
+    expect((await signIn(password)).status).toBe(401);
+    expect((await signIn(newPassword)).status).toBe(200);
+  });
+
+  it("answers the same for an unknown email, and sends nothing", async () => {
+    const asked = await post("/auth/password-reset", { email: "who@club.fr" });
+    expect(asked.status).toBe(202);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(test.mails).toEqual([]);
+    expect((await post("/auth/password-reset", { email: "nope" })).status).toBe(400);
+  });
+
+  it("works once, with the latest link only, and not after an hour", async () => {
+    await signUp(url, "coach@club.fr");
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    const first = await tokenFromMail();
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    await vi.waitFor(() => expect(test.mails).toHaveLength(2));
+    const second = await tokenFromMail();
+
+    const confirm = (token: string) =>
+      post("/auth/password-reset/confirm", { token, password: newPassword });
+    expect((await confirm(first)).status).toBe(400);
+    expect((await confirm(second)).status).toBe(200);
+    expect((await confirm(second)).status).toBe(400);
+
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    await vi.waitFor(() => expect(test.mails).toHaveLength(3));
+    const late = await tokenFromMail();
+    for (const reset of test.db.passwordResets) reset.expiresAt = new Date(Date.now() - 1000);
+    expect((await confirm(late)).status).toBe(400);
+  });
+
+  it("refuses a new password that breaks the rules, and keeps the link", async () => {
+    await signUp(url, "coach@club.fr");
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    const token = await tokenFromMail();
+    const short = await post("/auth/password-reset/confirm", { token, password: "short" });
+    expect(short.status).toBe(400);
+    expect(test.db.passwordResets).toHaveLength(1);
+  });
+});
+
 describe("public routes", () => {
-  it("are only the health check, sign-up and sign-in", () => {
+  it("are only the health check, sign-up, sign-in and password reset", () => {
     const controllers: (new (...args: never[]) => object)[] = Reflect.getMetadata(
       "controllers",
       AppModule,
@@ -188,6 +270,12 @@ describe("public routes", () => {
         return [`${method} /${[base, path].filter((part) => part !== "/").join("/")}`];
       });
     });
-    expect(publicRoutes.sort()).toEqual(["GET /health", "POST /auth/login", "POST /auth/signup"]);
+    expect(publicRoutes.sort()).toEqual([
+      "GET /health",
+      "POST /auth/login",
+      "POST /auth/password-reset",
+      "POST /auth/password-reset/confirm",
+      "POST /auth/signup",
+    ]);
   });
 });

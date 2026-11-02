@@ -105,14 +105,19 @@ export function AuthForm({ mode, apiUrl }: { mode: Mode; apiUrl: string }) {
           {t(`${mode}.submit`)}
         </Button>
       </form>
-      <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+        {mode === "login" && (
+          <Link className="underline" href="/organizer/forgot-password">
+            {t("login.forgot")}
+          </Link>
+        )}
         <Link
           className="underline"
           href={mode === "login" ? "/organizer/signup" : "/organizer/login"}
         >
           {t(`${mode}.switch`)}
         </Link>
-      </p>
+      </div>
     </main>
   );
 }

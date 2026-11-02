@@ -10,7 +10,9 @@ See [accounts.md](accounts.md). The session lives in an `HttpOnly`, `SameSite=La
 - **Sign in** (`POST /auth/login`): email and password. Answers 200 with the organizer, or 401 with the same message whether the email or the password is wrong.
 - **Sign out** (`POST /auth/logout`): ends the session and disconnects its live updates. Answers 204.
 - **Who am I** (`GET /auth/me`): the signed-in organizer.
-- Sign-up and sign-in each answer 429 after 10 attempts in a minute from one address.
+- **Forgotten password** (`POST /auth/password-reset`): an email. Answers 202 whether or not it has an account, and emails a reset link when it does (400 only when it is not an email address).
+- **New password** (`POST /auth/password-reset/confirm`): the token from the link and a new password. Ends every session of the account and its live updates, then signs in and answers 200 with the organizer. An unknown, used or expired token answers 400.
+- Sign-up, sign-in and the two password reset routes each answer 429 after 10 attempts in a minute from one address.
 
 ## Tournaments
 
@@ -30,7 +32,7 @@ The socket accepts a connection only with a valid session cookie, and from a bro
 
 ## Access
 
-Only the health check (`GET /health`), sign-up and sign-in are open without a session; a test pins that list. Only the web app's address may call the API from a browser.
+Only the health check (`GET /health`), sign-up, sign-in and the two password reset routes are open without a session; a test pins that list. Only the web app's address may call the API from a browser.
 
 ## Web app offline
 
