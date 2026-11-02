@@ -1,4 +1,4 @@
-import type { OnModuleDestroy } from "@nestjs/common";
+import { Logger, type OnModuleDestroy } from "@nestjs/common";
 import {
   type OnGatewayConnection,
   type OnGatewayInit,
@@ -32,7 +32,15 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
   @WebSocketServer()
   private readonly server: Server | undefined;
 
-  private readonly sweeper = setInterval(() => void this.sweep().catch(() => {}), SWEEP_EVERY_MS);
+  private readonly logger = new Logger(LiveGateway.name);
+
+  private readonly sweeper = setInterval(
+    () =>
+      void this.sweep().catch((error: unknown) =>
+        this.logger.error(`session sweep failed: ${String(error)}`),
+      ),
+    SWEEP_EVERY_MS,
+  );
 
   constructor(private readonly auth: AuthService) {}
 

@@ -23,17 +23,39 @@ export async function hashPassword(password: string): Promise<string> {
   );
 }
 
+const costSetting = (value: string | undefined): number | undefined => {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : undefined;
+};
+
+/** True only for the password the hash was made from; false for any hash it cannot read. */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const [scheme, N, r, p, salt, key] = hash.split("$");
-  if (scheme !== "scrypt" || salt === undefined || key === undefined) return false;
+  const [scheme, N, r, p, salt, key, ...rest] = hash.split("$");
+  const cost = { N: costSetting(N), r: costSetting(r), p: costSetting(p) };
+  if (
+    scheme !== "scrypt" ||
+    salt === undefined ||
+    key === undefined ||
+    rest.length > 0 ||
+    cost.N === undefined ||
+    cost.r === undefined ||
+    cost.p === undefined
+  ) {
+    return false;
+  }
   const expected = Buffer.from(key, "base64");
-  const actual = await derive(password, Buffer.from(salt, "base64"), {
-    N: Number(N),
-    r: Number(r),
-    p: Number(p),
-    maxmem: COST.maxmem,
-  });
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+  try {
+    const actual = await derive(password, Buffer.from(salt, "base64"), {
+      N: cost.N,
+      r: cost.r,
+      p: cost.p,
+      maxmem: COST.maxmem,
+    });
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  } catch {
+    // Settings scrypt refuses (N not a power of 2, too much memory) cannot match.
+    return false;
+  }
 }
 
 /** Hashed once, so that signing in with an unknown email takes as long as with a wrong password. */

@@ -108,6 +108,14 @@ describe("organizer accounts", () => {
     expect(statuses).toContain(429);
   });
 
+  it("limits sign-up attempts from one address", async () => {
+    // Invalid accounts still count, and skip the slow password hashing.
+    const attempts = Array.from({ length: 11 }, () => post("/auth/signup", { email: "nope" }));
+    const statuses = (await Promise.all(attempts)).map((response) => response.status);
+    expect(statuses.filter((status) => status === 400)).toHaveLength(10);
+    expect(statuses).toContain(429);
+  });
+
   it("refuses live updates without a session, and ends them on sign-out", async () => {
     const refused = io(url, { transports: ["websocket"], reconnection: false });
     const error = await new Promise<Error>((resolve) => refused.on("connect_error", resolve));

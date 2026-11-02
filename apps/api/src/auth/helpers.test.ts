@@ -28,13 +28,19 @@ describe("password hashing", () => {
     expect(await hashPassword("same password")).not.toBe(await hashPassword("same password"));
   });
 
-  it("refuses a hash it cannot read", async () => {
+  it("refuses a hash it cannot read, without throwing", async () => {
+    const part = fc.oneof(fc.string({ maxLength: 8 }), fc.integer().map(String));
+    const scryptLike = fc
+      .array(part, { maxLength: 7 })
+      .map((parts) => ["scrypt", ...parts].join("$"));
     await fc.assert(
-      fc.asyncProperty(fc.string(), async (hash) => {
-        fc.pre(!hash.startsWith("scrypt$"));
+      fc.asyncProperty(fc.oneof(fc.string(), scryptLike), async (hash) => {
         expect(await verifyPassword("password", hash)).toBe(false);
       }),
+      { numRuns: 200 },
     );
+    expect(await verifyPassword("password", "scrypt$x$8$5$c2FsdA==$a2V5")).toBe(false);
+    expect(await verifyPassword("password", "scrypt$3$8$5$c2FsdA==$a2V5")).toBe(false);
   });
 });
 

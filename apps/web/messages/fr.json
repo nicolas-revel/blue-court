@@ -35,6 +35,7 @@
   "organizer": {
     "signedInAs": "Connecté en tant que {name}",
     "signOut": "Se déconnecter",
+    "signOutFailed": "Déconnexion impossible : vérifiez la connexion et réessayez.",
     "tournaments": "Mes tournois",
     "noTournament": "Aucun tournoi pour l’instant.",
     "create": "Créer un tournoi"
