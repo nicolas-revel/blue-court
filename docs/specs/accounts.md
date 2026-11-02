@@ -30,6 +30,7 @@ These are platform settings, not tournament settings: they are the same for ever
 - The email is compared without regard to case or surrounding spaces: `Coach@Club.fr` and `coach@club.fr` are the same account, and a second sign-up with it is refused.
 - An expired or deleted session is treated as signed out. Live updates opened with it stop within five minutes, and expired sessions are purged at the same pace.
 - A second reset request makes the first link stop working. Someone who knows an organizer's email can therefore replace their pending link, at most once a minute: accepted, since the organizer can always ask again, and keeping several links valid would widen what a leaked email exposes. A link opened after its hour, or a second time, asks for a new one.
+- If the email cannot be sent, the new link is dropped, so the organizer can ask again right away.
 - A password reset ends every session of the account, so a lost or shared device is signed out too.
 - An 11th attempt within a minute is refused with a "try again in a minute" message.
 - The limit counts attempts from one address only. Guesses at one account spread over many addresses are not slowed down; the password length is the defense there. A per-account limit would let anyone lock an organizer out, so it is left for later if needed.

@@ -139,13 +139,20 @@ export class AuthService {
     const organizer = await this.prisma.organizer.findUnique({ where: { email } });
     if (organizer === null) return;
     const token = newToken();
-    if (!(await this.replaceResetLink(organizer.id, hashToken(token)))) return;
+    const tokenHash = hashToken(token);
+    if (!(await this.replaceResetLink(organizer.id, tokenHash))) return;
     // The token sits after `#`, which browsers never send to a server or in a Referer header.
     const link = `${webOrigin}/organizer/reset-password#${token}`;
-    await this.mailer.send({
-      to: organizer.email,
-      ...resetMail({ name: organizer.name, link, minutes: RESET_LINK_MINUTES }),
-    });
+    try {
+      await this.mailer.send({
+        to: organizer.email,
+        ...resetMail({ name: organizer.name, link, minutes: RESET_LINK_MINUTES }),
+      });
+    } catch (error) {
+      // An undelivered link is dropped, so the organizer can ask again right away.
+      await this.prisma.passwordReset.deleteMany({ where: { tokenHash } });
+      throw error;
+    }
   }
 
   /**

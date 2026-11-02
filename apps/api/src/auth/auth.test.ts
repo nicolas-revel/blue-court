@@ -213,6 +213,20 @@ describe("forgotten password", () => {
     expect(confirmed.status).toBe(200);
   });
 
+  it("drops a link whose email could not be sent, so the organizer can ask again at once", async () => {
+    await signUp(url, "coach@club.fr");
+    vi.spyOn(test.mails, "push").mockImplementationOnce(() => {
+      throw new Error("SMTP down");
+    });
+    expect((await post("/auth/password-reset", { email: "coach@club.fr" })).status).toBe(202);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(test.db.passwordResets).toHaveLength(0);
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    const token = await tokenFromMail();
+    const confirmed = await post("/auth/password-reset/confirm", { token, password: newPassword });
+    expect(confirmed.status).toBe(200);
+  });
+
   it("emails a link that sets a new password, ends other sessions and signs in", async () => {
     const oldSession = await signUp(url, "coach@club.fr");
     const asked = await post("/auth/password-reset", { email: "Coach@Club.fr" });

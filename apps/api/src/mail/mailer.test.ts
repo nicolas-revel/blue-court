@@ -6,6 +6,7 @@ const mail = { to: "coach@club.fr", subject: "Reset", text: "https://example.fr/
 
 function logged(env: Record<string, string>): string {
   vi.stubEnv("SMTP_URL", "");
+  vi.stubEnv("WEB_ORIGIN", "http://localhost:3000");
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
   const lines: string[] = [];
   for (const level of ["log", "warn", "error"] as const) {
@@ -41,5 +42,11 @@ describe("Mailer without SMTP_URL", () => {
       expect(output).toContain("coach@club.fr");
       vi.restoreAllMocks();
     }
+  });
+
+  it("ignores MAIL_LOG_BODY=1 on a site served over HTTPS, and says so", () => {
+    const output = logged({ MAIL_LOG_BODY: "1", WEB_ORIGIN: "https://tournois.example.fr" });
+    expect(output).not.toContain("secret-token");
+    expect(output).toContain("MAIL_LOG_BODY=1 is ignored");
   });
 });
