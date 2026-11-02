@@ -30,12 +30,22 @@ interface Tournament {
   createdAt: Date;
 }
 
-type Where<T> = { where: Partial<T> };
+/** A field equals a value, is in a list, or is a date at or before a bound. */
+type Condition<V> = V | { in: V[] } | { lte: V };
+type Where<T> = { where: { [K in keyof T]?: Condition<T[K]> } };
+
+const holds = (actual: unknown, condition: unknown): boolean => {
+  if (typeof condition === "object" && condition !== null && !(condition instanceof Date)) {
+    if ("in" in condition) return (condition.in as unknown[]).includes(actual);
+    if ("lte" in condition) return (actual as Date) <= (condition.lte as Date);
+  }
+  return actual === condition;
+};
 
 const matches =
-  <T extends object>(where: Partial<T>) =>
+  <T extends object>(where: Where<T>["where"]) =>
   (row: T): boolean =>
-    Object.entries(where).every(([key, value]) => row[key as keyof T] === value);
+    Object.entries(where).every(([key, condition]) => holds(row[key as keyof T], condition));
 
 /** Just enough of the Prisma client for the API's routes, kept in memory. */
 export function memoryPrisma() {
@@ -62,6 +72,8 @@ export function memoryPrisma() {
         return row;
       },
       findUnique: async ({ where }: Where<Session>) => sessions.find(matches(where)) ?? null,
+      findMany: async ({ where }: Where<Session>) =>
+        sessions.filter(matches(where)).map(({ id }) => ({ id })),
       deleteMany: async ({ where }: Where<Session>) => {
         const kept = sessions.filter((row) => !matches(where)(row));
         const count = sessions.length - kept.length;

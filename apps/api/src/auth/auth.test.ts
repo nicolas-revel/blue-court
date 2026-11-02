@@ -3,6 +3,7 @@ import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants.js";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
+import { LiveGateway } from "../live.gateway.js";
 import { cookieOf, send, signUp, startTestApp, type TestApp } from "../testing/test-app.js";
 import { IS_PUBLIC } from "./public.decorator.js";
 
@@ -123,6 +124,28 @@ describe("organizer accounts", () => {
     const disconnected = new Promise<string>((resolve) => socket.on("disconnect", resolve));
     await post("/auth/logout", undefined, cookie);
     expect(await disconnected).toBe("io server disconnect");
+  });
+
+  it("purges expired sessions and disconnects their live updates", async () => {
+    const cookie = await signUp(url);
+    const socket = io(url, {
+      transports: ["websocket"],
+      reconnection: false,
+      extraHeaders: { cookie },
+    });
+    await new Promise<void>((resolve) => socket.on("connect", resolve));
+    const disconnected = new Promise<string>((resolve) => socket.on("disconnect", resolve));
+    const kept = await signUp(url);
+
+    const later = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+    for (const session of test.db.sessions.slice(0, 1)) session.expiresAt = new Date(0);
+    await test.app.get(LiveGateway).sweep();
+    expect(await disconnected).toBe("io server disconnect");
+    expect(test.db.sessions).toHaveLength(1);
+    expect((await me(kept)).status).toBe(200);
+
+    await test.app.get(LiveGateway).sweep(later);
+    expect(test.db.sessions).toEqual([]);
   });
 });
 

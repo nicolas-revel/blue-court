@@ -36,7 +36,8 @@ const hashToken = (token: string): string => createHash("sha256").update(token).
 const asRecord = (body: unknown): Record<string, unknown> =>
   typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
 
-const normalizeEmail = (value: unknown): string | undefined => {
+/** Lowercase and trimmed, or `undefined` when it is not an email address. */
+export const normalizeEmail = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const email = value.trim().toLowerCase();
   return email.length <= EMAIL_MAX_LENGTH && EMAIL_FORMAT.test(email) ? email : undefined;
@@ -104,6 +105,20 @@ export class AuthService {
 
   async signOut(sessionId: string): Promise<void> {
     await this.prisma.session.deleteMany({ where: { id: sessionId } });
+  }
+
+  /**
+   * Deletes expired sessions and returns, among the given ones, those that no longer exist, so
+   * that their live updates can be stopped.
+   */
+  async sweep(sessionIds: readonly string[], now = new Date()): Promise<string[]> {
+    await this.prisma.session.deleteMany({ where: { expiresAt: { lte: now } } });
+    const alive = await this.prisma.session.findMany({
+      where: { id: { in: [...sessionIds] } },
+      select: { id: true },
+    });
+    const aliveIds = new Set(alive.map((session) => session.id));
+    return sessionIds.filter((id) => !aliveIds.has(id));
   }
 
   /** The organizer behind a session token, if the session exists and has not expired. */

@@ -25,7 +25,7 @@ These are platform settings, not tournament settings: they are the same for ever
 ## Edge cases
 
 - The email is compared without regard to case or surrounding spaces: `Coach@Club.fr` and `coach@club.fr` are the same account, and a second sign-up with it is refused.
-- An expired or deleted session is treated as signed out.
+- An expired or deleted session is treated as signed out. Live updates opened with it stop within five minutes, and expired sessions are purged at the same pace.
 - An 11th attempt within a minute is refused with a "try again in a minute" message.
 
 ## Examples

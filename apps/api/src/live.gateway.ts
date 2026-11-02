@@ -1,3 +1,4 @@
+import type { OnModuleDestroy } from "@nestjs/common";
 import {
   type OnGatewayConnection,
   type OnGatewayInit,
@@ -10,7 +11,11 @@ import { readSessionToken } from "./auth/session-cookie.js";
 import { webOrigin } from "./config.js";
 
 const organizerRoom = (organizerId: string) => `organizer:${organizerId}`;
-const sessionRoom = (sessionId: string) => `session:${sessionId}`;
+const SESSION_PREFIX = "session:";
+const sessionRoom = (sessionId: string) => `${SESSION_PREFIX}${sessionId}`;
+
+/** How often expired sessions are purged and their screens disconnected. */
+const SWEEP_EVERY_MS = 5 * 60 * 1000;
 
 interface SocketData {
   organizerId: string;
@@ -23,9 +28,11 @@ interface SocketData {
  * hears about their own tournaments.
  */
 @WebSocketGateway({ cors: { origin: webOrigin, credentials: true } })
-export class LiveGateway implements OnGatewayInit, OnGatewayConnection {
+export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModuleDestroy {
   @WebSocketServer()
   private readonly server: Server | undefined;
+
+  private readonly sweeper = setInterval(() => void this.sweep().catch(() => {}), SWEEP_EVERY_MS);
 
   constructor(private readonly auth: AuthService) {}
 
@@ -49,6 +56,22 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection {
   async handleConnection(socket: Socket): Promise<void> {
     const { organizerId, sessionId } = socket.data as SocketData;
     await socket.join([organizerRoom(organizerId), sessionRoom(sessionId)]);
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.sweeper);
+  }
+
+  /**
+   * The session is checked at the handshake only, so sessions that expired or were deleted since
+   * are found here, and their screens disconnected.
+   */
+  async sweep(now = new Date()): Promise<void> {
+    const rooms = [...(this.server?.of("/").adapter.rooms.keys() ?? [])];
+    const sessionIds = rooms
+      .filter((room) => room.startsWith(SESSION_PREFIX))
+      .map((room) => room.slice(SESSION_PREFIX.length));
+    for (const sessionId of await this.auth.sweep(sessionIds, now)) this.endSession(sessionId);
   }
 
   /** Sends an event to every screen the organizer has open. */
