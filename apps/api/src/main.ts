@@ -5,8 +5,9 @@ import { AppModule } from "./app.module.js";
 import { webOrigin } from "./config.js";
 
 const app = await NestFactory.create<NestExpressApplication>(AppModule);
-// On the server, Caddy is the one hop in front of the API: rate limits use the client's address.
-app.set("trust proxy", 1);
+// Rate limits key on the client's address. Behind Caddy on the server, set TRUST_PROXY_HOPS=1 so
+// it comes from X-Forwarded-For; without a proxy, trusting that header would let clients forge it.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 0));
 app.enableCors({ origin: webOrigin, credentials: true });
 app.enableShutdownHooks();
 await app.listen(Number(process.env.PORT ?? 4000));

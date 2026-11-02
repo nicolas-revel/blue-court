@@ -27,6 +27,7 @@ services:
     environment:
       DATABASE_URL: postgres://blue-court:${POSTGRES_PASSWORD}@db:5432/blue-court
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
       PORT: 4000
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"
