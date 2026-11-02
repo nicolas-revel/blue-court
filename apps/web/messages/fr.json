@@ -12,7 +12,7 @@
     "name": "Nom",
     "email": "Email",
     "password": "Mot de passe",
-    "passwordHint": "10 caractères minimum.",
+    "passwordHint": "{min} caractères minimum.",
     "login": {
       "title": "Connexion",
       "submit": "Se connecter",
@@ -24,7 +24,7 @@
       "switch": "Déjà un compte ? Se connecter"
     },
     "errors": {
-      "invalid": "Vérifiez les champs : email valide, nom renseigné, mot de passe de 10 caractères minimum.",
+      "invalid": "Vérifiez les champs : email valide, nom renseigné, mot de passe de {min} caractères minimum.",
       "wrongCredentials": "Email ou mot de passe incorrect.",
       "emailTaken": "Un compte utilise déjà cet email.",
       "tooManyAttempts": "Trop de tentatives. Réessayez dans une minute.",

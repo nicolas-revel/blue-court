@@ -18,7 +18,7 @@ Organizers create an account with an email and a password, then find their own t
 | --- | --- |
 | Password length | 10 to 200 characters |
 | Session length | 30 days, then sign in again |
-| Sign-up and sign-in attempts | 10 per minute from one address |
+| Sign-up and sign-in attempts | 10 per minute each, from one address |
 
 These are platform settings, not tournament settings: they are the same for every organizer.
 

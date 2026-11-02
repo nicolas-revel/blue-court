@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/account-limits";
 
 type Mode = "login" | "signup";
 
@@ -55,7 +56,7 @@ export function AuthForm({ mode, apiUrl }: { mode: Mode; apiUrl: string }) {
         window.location.assign("/organizer");
         return;
       }
-      setError(t(`errors.${ERRORS[response.status] ?? "unknown"}`));
+      setError(t(`errors.${ERRORS[response.status] ?? "unknown"}`, { min: PASSWORD_MIN_LENGTH }));
     } catch {
       setError(t("errors.network"));
     }
@@ -68,7 +69,13 @@ export function AuthForm({ mode, apiUrl }: { mode: Mode; apiUrl: string }) {
       <form className="flex flex-col gap-4" onSubmit={submit}>
         {mode === "signup" && (
           <Field id={`${id}-name`} label={t("name")}>
-            <Input id={`${id}-name`} name="name" autoComplete="name" required maxLength={100} />
+            <Input
+              id={`${id}-name`}
+              name="name"
+              autoComplete="name"
+              required
+              maxLength={NAME_MAX_LENGTH}
+            />
           </Field>
         )}
         <Field id={`${id}-email`} label={t("email")}>
@@ -77,7 +84,7 @@ export function AuthForm({ mode, apiUrl }: { mode: Mode; apiUrl: string }) {
         <Field
           id={`${id}-password`}
           label={t("password")}
-          hint={mode === "signup" ? t("passwordHint") : undefined}
+          hint={mode === "signup" ? t("passwordHint", { min: PASSWORD_MIN_LENGTH }) : undefined}
         >
           <Input
             id={`${id}-password`}
@@ -85,8 +92,8 @@ export function AuthForm({ mode, apiUrl }: { mode: Mode; apiUrl: string }) {
             type="password"
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             required
-            minLength={mode === "signup" ? 10 : undefined}
-            maxLength={200}
+            minLength={mode === "signup" ? PASSWORD_MIN_LENGTH : undefined}
+            maxLength={PASSWORD_MAX_LENGTH}
           />
         </Field>
         {error !== null && (

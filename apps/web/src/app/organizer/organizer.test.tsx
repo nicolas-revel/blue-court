@@ -2,7 +2,9 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import * as apiLimits from "../../../../api/src/auth/limits";
 import fr from "../../../messages/fr.json";
+import * as limits from "../../lib/account-limits";
 import { TournamentList } from "./(signed-in)/tournament-list";
 import { AuthForm } from "./auth-form";
 
@@ -27,7 +29,12 @@ describe("sign-in and sign-up forms", () => {
     expect(html).toContain(fr.auth.signup.title);
     expect(html).toContain('name="name"');
     expect(html).toContain('"new-password"');
-    expect(html).toContain('minLength="10"');
+    expect(html).toContain(`minLength="${limits.PASSWORD_MIN_LENGTH}"`);
+    expect(html).toContain(`${limits.PASSWORD_MIN_LENGTH} caractères minimum`);
+  });
+
+  it("uses the API's field limits", () => {
+    expect(limits).toEqual(apiLimits);
   });
 });
 

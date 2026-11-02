@@ -10,7 +10,7 @@ See [accounts.md](accounts.md). The session lives in an `HttpOnly`, `SameSite=La
 - **Sign in** (`POST /auth/login`): email and password. Answers 200 with the organizer, or 401 with the same message whether the email or the password is wrong.
 - **Sign out** (`POST /auth/logout`): ends the session and disconnects its live updates. Answers 204.
 - **Who am I** (`GET /auth/me`): the signed-in organizer.
-- Sign-up and sign-in answer 429 after 10 attempts in a minute from one address.
+- Sign-up and sign-in each answer 429 after 10 attempts in a minute from one address.
 
 ## Tournaments
 

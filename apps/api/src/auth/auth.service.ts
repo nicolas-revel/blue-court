@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
+import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits.js";
 import { decoyHash, hashPassword, verifyPassword } from "./password.js";
 import { SESSION_DAYS } from "./session-cookie.js";
 
@@ -27,10 +28,6 @@ export interface NewSession extends SignedIn {
   readonly maxAgeSeconds: number;
 }
 
-export const PASSWORD_MIN_LENGTH = 10;
-/** scrypt hashes any length, but an unbounded password would let a request burn CPU. */
-export const PASSWORD_MAX_LENGTH = 200;
-const NAME_MAX_LENGTH = 100;
 const EMAIL_MAX_LENGTH = 254;
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
