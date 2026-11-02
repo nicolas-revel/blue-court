@@ -7,7 +7,8 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { webOrigin } from "../config.js";
-import { Mailer } from "../mailer.js";
+import { Mailer } from "../mail/mailer.js";
+import { resetMail } from "../mail/messages.fr.js";
 import { PrismaService } from "../prisma.service.js";
 import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits.js";
 import { decoyHash, hashPassword, verifyPassword } from "./password.js";
@@ -62,21 +63,6 @@ const isValidPassword = (password: unknown): password is string =>
   password.length <= PASSWORD_MAX_LENGTH;
 
 const PASSWORD_RULE = `password: between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`;
-
-/** The reset email, in French like the rest of the product. */
-const resetMail = (to: string, name: string, link: string) => ({
-  to,
-  subject: "Blue Court : réinitialiser votre mot de passe",
-  text: [
-    `Bonjour ${name},`,
-    "",
-    "Pour choisir un nouveau mot de passe, ouvrez ce lien :",
-    link,
-    "",
-    `Il fonctionne pendant ${RESET_LINK_MINUTES} minutes et une seule fois.`,
-    "Si vous n'avez rien demandé, ignorez cet email : votre mot de passe ne change pas.",
-  ].join("\n"),
-});
 
 const logger = new Logger("AuthService");
 
@@ -162,7 +148,10 @@ export class AuthService {
     });
     // The token sits after `#`, which browsers never send to a server or in a Referer header.
     const link = `${webOrigin}/organizer/reset-password#${token}`;
-    await this.mailer.send(resetMail(organizer.email, organizer.name, link));
+    await this.mailer.send({
+      to: organizer.email,
+      ...resetMail({ name: organizer.name, link, minutes: RESET_LINK_MINUTES }),
+    });
   }
 
   /**

@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { AppModule } from "../app.module.js";
-import { type Mail, Mailer } from "../mailer.js";
+import { type Mail, Mailer } from "../mail/mailer.js";
 import { PrismaService } from "../prisma.service.js";
 
 interface Organizer {

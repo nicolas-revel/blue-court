@@ -6,7 +6,7 @@ import { AuthGuard } from "./auth/auth.guard.js";
 import { AuthService } from "./auth/auth.service.js";
 import { HealthController } from "./health.controller.js";
 import { LiveGateway } from "./live.gateway.js";
-import { Mailer } from "./mailer.js";
+import { Mailer } from "./mail/mailer.js";
 import { PrismaService } from "./prisma.service.js";
 import { TournamentsController } from "./tournaments/tournaments.controller.js";
 import { TournamentsService } from "./tournaments/tournaments.service.js";

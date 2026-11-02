@@ -7,10 +7,13 @@ export interface Mail {
   readonly text: string;
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 /**
  * Sends emails through the SMTP server in `SMTP_URL` (for example
- * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, as in
- * local development, the email is written to the log instead.
+ * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, in
+ * development, the whole email is written to the log so reset links can be followed. In
+ * production it is not: an email holds a reset link, which must never sit in a log.
  */
 @Injectable()
 export class Mailer {
@@ -21,11 +24,19 @@ export class Mailer {
       ? undefined
       : createTransport(process.env.SMTP_URL);
 
-  async send(mail: Mail): Promise<void> {
-    if (this.transport === undefined) {
-      this.logger.log(`SMTP_URL is not set; email to ${mail.to}: ${mail.subject}\n${mail.text}`);
-      return;
+  constructor() {
+    if (this.transport === undefined && isProduction) {
+      this.logger.warn("SMTP_URL is not set: password reset emails will not be sent.");
     }
-    await this.transport.sendMail({ from: this.from, ...mail });
+  }
+
+  async send(mail: Mail): Promise<void> {
+    if (this.transport !== undefined) {
+      await this.transport.sendMail({ from: this.from, ...mail });
+    } else if (isProduction) {
+      this.logger.error(`SMTP_URL is not set; email "${mail.subject}" to ${mail.to} not sent`);
+    } else {
+      this.logger.log(`SMTP_URL is not set; email to ${mail.to}: ${mail.subject}\n${mail.text}`);
+    }
   }
 }
