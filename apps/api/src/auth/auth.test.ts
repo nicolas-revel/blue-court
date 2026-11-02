@@ -194,6 +194,23 @@ describe("forgotten password", () => {
     return link.split("#")[1] ?? "";
   };
   const newPassword = "a brand new password";
+  /** Makes pending links older than the one-email-a-minute limit. */
+  const ageResetLinks = () => {
+    for (const reset of test.db.passwordResets) reset.createdAt = new Date(Date.now() - 61_000);
+  };
+
+  it("sends at most one email a minute per account, and keeps the pending link", async () => {
+    await signUp(url, "coach@club.fr");
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    const token = await tokenFromMail();
+    for (let i = 0; i < 3; i++) {
+      expect((await post("/auth/password-reset", { email: "coach@club.fr" })).status).toBe(202);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(test.mails).toHaveLength(1);
+    const confirmed = await post("/auth/password-reset/confirm", { token, password: newPassword });
+    expect(confirmed.status).toBe(200);
+  });
 
   it("emails a link that sets a new password, ends other sessions and signs in", async () => {
     const oldSession = await signUp(url, "coach@club.fr");
@@ -225,6 +242,7 @@ describe("forgotten password", () => {
     await signUp(url, "coach@club.fr");
     await post("/auth/password-reset", { email: "coach@club.fr" });
     const first = await tokenFromMail();
+    ageResetLinks();
     await post("/auth/password-reset", { email: "coach@club.fr" });
     await vi.waitFor(() => expect(test.mails).toHaveLength(2));
     const second = await tokenFromMail();
@@ -235,6 +253,7 @@ describe("forgotten password", () => {
     expect((await confirm(second)).status).toBe(200);
     expect((await confirm(second)).status).toBe(400);
 
+    ageResetLinks();
     await post("/auth/password-reset", { email: "coach@club.fr" });
     await vi.waitFor(() => expect(test.mails).toHaveLength(3));
     const late = await tokenFromMail();

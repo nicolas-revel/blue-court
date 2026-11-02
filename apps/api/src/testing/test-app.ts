@@ -96,6 +96,8 @@ export function memoryPrisma() {
       },
       findUnique: async ({ where }: Where<PasswordReset>) =>
         passwordResets.find(matches(where)) ?? null,
+      findFirst: async ({ where }: Where<PasswordReset>) =>
+        passwordResets.find(matches(where)) ?? null,
       deleteMany: async ({ where }: Where<PasswordReset>) => deleteWhere(passwordResets, where),
     },
     session: {

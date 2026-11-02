@@ -37,6 +37,8 @@ const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** How long a password reset link works. */
 export const RESET_LINK_MINUTES = 60;
+/** How long before another reset email can be sent for the same account. */
+export const RESET_RESEND_SECONDS = 60;
 
 const newToken = (): string => randomBytes(32).toString("base64url");
 
@@ -136,6 +138,15 @@ export class AuthService {
   private async sendResetLink(email: string): Promise<void> {
     const organizer = await this.prisma.organizer.findUnique({ where: { email } });
     if (organizer === null) return;
+    // One email a minute per account at most: the address cannot be flooded, nor the pending
+    // link replaced over and over by someone else.
+    const recent = await this.prisma.passwordReset.findFirst({
+      where: {
+        organizerId: organizer.id,
+        createdAt: { gt: new Date(Date.now() - RESET_RESEND_SECONDS * 1000) },
+      },
+    });
+    if (recent !== null) return;
     // Only the latest link works.
     await this.prisma.passwordReset.deleteMany({ where: { organizerId: organizer.id } });
     const token = newToken();
