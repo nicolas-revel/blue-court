@@ -19,7 +19,9 @@ export function ResetPasswordForm({ apiUrl }: { apiUrl: string }) {
   const id = useId();
 
   useEffect(() => {
-    setToken(window.location.hash.slice(1));
+    // Strict Mode runs this twice in development: the second run finds the hash already removed.
+    const fromLink = window.location.hash.slice(1);
+    setToken((current) => (fromLink !== "" ? fromLink : (current ?? "")));
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
