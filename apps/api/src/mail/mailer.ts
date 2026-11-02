@@ -7,25 +7,28 @@ export interface Mail {
   readonly text: string;
 }
 
-const isProduction = process.env.NODE_ENV === "production";
-
 /**
  * Sends emails through the SMTP server in `SMTP_URL` (for example
- * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, in
- * development, the whole email is written to the log so reset links can be followed. In
- * production it is not: an email holds a reset link, which must never sit in a log.
+ * `smtps://user:password@smtp.tem.scaleway.com:465`), from `MAIL_FROM`. Without `SMTP_URL`, the
+ * whole email is written to the log when that is allowed, so reset links can be followed
+ * locally: outside production (`pnpm dev`), or with `MAIL_LOG_BODY=1` (local Docker Compose,
+ * whose image runs with `NODE_ENV=production`). Otherwise only the recipient and subject are
+ * logged: an email holds a reset link, which must never sit in a server log.
  */
 @Injectable()
 export class Mailer {
   private readonly logger = new Logger(Mailer.name);
-  private readonly from = process.env.MAIL_FROM ?? "Blue Court <no-reply@localhost>";
-  private readonly transport =
-    process.env.SMTP_URL === undefined || process.env.SMTP_URL === ""
-      ? undefined
-      : createTransport(process.env.SMTP_URL);
+  private readonly from: string;
+  private readonly transport: ReturnType<typeof createTransport> | undefined;
+  private readonly logBody: boolean;
 
   constructor() {
-    if (this.transport === undefined && isProduction) {
+    const env = process.env;
+    this.from = env.MAIL_FROM ?? "Blue Court <no-reply@localhost>";
+    this.transport =
+      env.SMTP_URL === undefined || env.SMTP_URL === "" ? undefined : createTransport(env.SMTP_URL);
+    this.logBody = env.MAIL_LOG_BODY === "1" || env.NODE_ENV !== "production";
+    if (this.transport === undefined && !this.logBody) {
       this.logger.warn("SMTP_URL is not set: password reset emails will not be sent.");
     }
   }
@@ -33,10 +36,10 @@ export class Mailer {
   async send(mail: Mail): Promise<void> {
     if (this.transport !== undefined) {
       await this.transport.sendMail({ from: this.from, ...mail });
-    } else if (isProduction) {
-      this.logger.error(`SMTP_URL is not set; email "${mail.subject}" to ${mail.to} not sent`);
-    } else {
+    } else if (this.logBody) {
       this.logger.log(`SMTP_URL is not set; email to ${mail.to}: ${mail.subject}\n${mail.text}`);
+    } else {
+      this.logger.error(`SMTP_URL is not set; email "${mail.subject}" to ${mail.to} not sent`);
     }
   }
 }
