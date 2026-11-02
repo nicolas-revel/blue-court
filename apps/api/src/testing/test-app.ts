@@ -38,14 +38,15 @@ interface Tournament {
   createdAt: Date;
 }
 
-/** A field equals a value, is in a list, or is a date at or before a bound. */
-type Condition<V> = V | { in: V[] } | { lte: V };
+/** A field equals a value, is in a list, or is a date at or before (or after) a bound. */
+type Condition<V> = V | { in: V[] } | { lte: V } | { gt: V };
 type Where<T> = { where: { [K in keyof T]?: Condition<T[K]> } };
 
 const holds = (actual: unknown, condition: unknown): boolean => {
   if (typeof condition === "object" && condition !== null && !(condition instanceof Date)) {
     if ("in" in condition) return (condition.in as unknown[]).includes(actual);
     if ("lte" in condition) return (actual as Date) <= (condition.lte as Date);
+    if ("gt" in condition) return (actual as Date) > (condition.gt as Date);
   }
   return actual === condition;
 };

@@ -174,14 +174,19 @@ export class AuthService {
     if (!isValidPassword(password)) {
       throw new BadRequestException({ message: "invalid password", errors: [PASSWORD_RULE] });
     }
-    const reset =
-      typeof token === "string"
-        ? await this.prisma.passwordReset.findUnique({ where: { id: hashToken(token) } })
-        : null;
-    if (reset === null || reset.expiresAt <= now) {
-      throw new BadRequestException({ message: "this reset link is invalid or has expired" });
-    }
-    // Used once: deleted before anything else, so a second request with it fails.
+    const invalid = new BadRequestException({
+      message: "this reset link is invalid or has expired",
+    });
+    if (typeof token !== "string") throw invalid;
+    const id = hashToken(token);
+    const reset = await this.prisma.passwordReset.findUnique({ where: { id } });
+    if (reset === null) throw invalid;
+    // Used once: the delete is the gate. Of two requests racing with the same link, only the one
+    // whose delete removed the row goes on.
+    const { count } = await this.prisma.passwordReset.deleteMany({
+      where: { id, expiresAt: { gt: now } },
+    });
+    if (count === 0) throw invalid;
     await this.prisma.passwordReset.deleteMany({ where: { organizerId: reset.organizerId } });
     const organizer = await this.prisma.organizer.update({
       where: { id: reset.organizerId },

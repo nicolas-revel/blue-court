@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../app.module.js";
 import { LiveGateway } from "../live.gateway.js";
 import { cookieOf, send, signUp, startTestApp, type TestApp } from "../testing/test-app.js";
+import { AuthService } from "./auth.service.js";
 import { IS_PUBLIC } from "./public.decorator.js";
 
 const password = "correct horse battery";
@@ -239,6 +240,21 @@ describe("forgotten password", () => {
     const late = await tokenFromMail();
     for (const reset of test.db.passwordResets) reset.expiresAt = new Date(Date.now() - 1000);
     expect((await confirm(late)).status).toBe(400);
+  });
+
+  it("lets only one of two simultaneous uses of a link through", async () => {
+    await signUp(url, "coach@club.fr");
+    await post("/auth/password-reset", { email: "coach@club.fr" });
+    const token = await tokenFromMail();
+    // Called on the service directly, so both lookups run before either delete.
+    const auth = test.app.get(AuthService);
+    const answers = await Promise.allSettled(
+      ["first password!", "second password!"].map((password) =>
+        auth.resetPassword({ token, password }),
+      ),
+    );
+    expect(answers.map((answer) => answer.status).sort()).toEqual(["fulfilled", "rejected"]);
+    expect(test.db.sessions).toHaveLength(1);
   });
 
   it("refuses a new password that breaks the rules, and keeps the link", async () => {
