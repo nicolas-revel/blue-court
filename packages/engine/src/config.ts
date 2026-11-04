@@ -1,14 +1,17 @@
-import type {
-  MatchRules,
-  Phase,
-  PhaseFormat,
-  Qualification,
-  SetRules,
-  Team,
-  Tournament,
-} from "./model.js";
+import type { MatchRules, Phase, PhaseFormat, Qualification, SetRules, Team } from "./model.js";
+import {
+  isRecord,
+  MATCH_RULES,
+  type Path,
+  PHASE,
+  type ShapeReport,
+  TEAM,
+  TOURNAMENT,
+} from "./shape.js";
 
 export type ConfigErrorCode =
+  /** A setting is missing or has the wrong type, so the rest of its team or phase is not checked. */
+  | "MALFORMED"
   | "NO_PHASE"
   | "DUPLICATE_PHASE"
   | "DUPLICATE_TEAM"
@@ -43,7 +46,6 @@ export type ConfigValidation =
   | { readonly valid: true }
   | { readonly valid: false; readonly errors: readonly ConfigError[] };
 
-type Path = readonly (string | number)[];
 type Report = (code: ConfigErrorCode, message: string, path: Path) => void;
 
 /** Volleyball matches are played to at most 3 winning sets. */
@@ -220,10 +222,13 @@ function checkPhase(phase: Phase, teams: number, path: Path, report: Report): nu
   );
 }
 
-function checkTeams(teams: readonly Team[], report: Report): void {
+/** Checks the teams that have the right shape; the others are reported as malformed. */
+function checkTeams(teams: readonly unknown[], report: Report, malformed: ShapeReport): void {
   const ids = new Set<string>();
   const seeds = new Set<number>();
-  for (const [i, team] of teams.entries()) {
+  for (const [i, value] of teams.entries()) {
+    if (!TEAM(value, ["teams", i], malformed)) continue;
+    const team = value as Team;
     if (ids.has(team.id)) report("DUPLICATE_TEAM", `team ${team.id} appears twice`, ["teams", i]);
     ids.add(team.id);
     if (team.seed === undefined) continue;
@@ -236,33 +241,55 @@ function checkTeams(teams: readonly Team[], report: Report): void {
   }
 }
 
-/** Match rules on their own, for a phase being edited. */
-export function validateMatchRules(rules: MatchRules): ConfigValidation {
+const malformedBy =
+  (report: Report): ShapeReport =>
+  (message, path) =>
+    report("MALFORMED", message, path);
+
+const result = (errors: readonly ConfigError[]): ConfigValidation =>
+  errors.length === 0 ? { valid: true } : { valid: false, errors };
+
+/**
+ * Match rules on their own, for a phase being edited. They may come from outside the engine: a
+ * missing or mistyped setting is reported as `MALFORMED`.
+ */
+export function validateMatchRules(rules: unknown): ConfigValidation {
   const errors: ConfigError[] = [];
-  checkMatchRules(rules, [], (code, message, path) => errors.push({ code, message, path }));
-  return errors.length === 0 ? { valid: true } : { valid: false, errors };
+  const report: Report = (code, message, path) => errors.push({ code, message, path });
+  if (MATCH_RULES(rules, [], malformedBy(report))) checkMatchRules(rules as MatchRules, [], report);
+  return result(errors);
 }
 
 /**
- * Checks a tournament before it starts: settings that type-check but can never work. Each
- * phase is checked with the number of teams the previous one qualifies.
+ * Checks a tournament before it starts: settings that can never work. The tournament may come
+ * from outside the engine (JSON sent to the API), so it never throws: a missing or mistyped
+ * setting is reported as `MALFORMED` with its path, and the rest of that team or phase is skipped.
+ * Each phase is checked with the number of teams the previous one qualifies; after a malformed
+ * phase, as if every team went on.
  */
-export function validateTournament(tournament: Tournament): ConfigValidation {
+export function validateTournament(tournament: unknown): ConfigValidation {
   const errors: ConfigError[] = [];
   const report: Report = (code, message, path) => errors.push({ code, message, path });
-  checkTeams(tournament.teams, report);
-  if (tournament.teams.length < 2) {
+  const malformed = malformedBy(report);
+  TOURNAMENT(tournament, [], malformed);
+  if (!isRecord(tournament)) return result(errors);
+  const { teams: teamList, phases } = tournament;
+  if (!(Array.isArray(teamList) && Array.isArray(phases))) return result(errors);
+  checkTeams(teamList, report, malformed);
+  if (teamList.length < 2) {
     report("TOO_FEW_TEAMS", "a tournament needs at least 2 teams", ["teams"]);
   }
-  if (tournament.phases.length === 0) report("NO_PHASE", "a tournament needs a phase", ["phases"]);
+  if (phases.length === 0) report("NO_PHASE", "a tournament needs a phase", ["phases"]);
   const ids = new Set<string>();
-  let teams = tournament.teams.length;
-  for (const [i, phase] of tournament.phases.entries()) {
+  let teams = teamList.length;
+  for (const [i, value] of phases.entries()) {
+    if (!PHASE(value, ["phases", i], malformed)) continue;
+    const phase = value as Phase;
     if (ids.has(phase.id)) {
       report("DUPLICATE_PHASE", `phase ${phase.id} appears twice`, ["phases", i, "id"]);
     }
     ids.add(phase.id);
     teams = checkPhase(phase, teams, ["phases", i], report);
   }
-  return errors.length === 0 ? { valid: true } : { valid: false, errors };
+  return result(errors);
 }

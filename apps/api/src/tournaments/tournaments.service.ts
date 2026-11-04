@@ -1,12 +1,6 @@
 import { randomInt } from "node:crypto";
-import {
-  type ConfigValidation,
-  type Phase,
-  type Team,
-  type Tournament,
-  validateTournament,
-} from "@blue-court/engine";
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { type Phase, type Team, validateTournament } from "@blue-court/engine";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "../generated/prisma/client.js";
 import { LiveGateway } from "../live.gateway.js";
 import { PrismaService } from "../prisma.service.js";
@@ -26,43 +20,11 @@ export interface StoredTournament extends TournamentSummary, NewTournament {
   readonly seed: number;
 }
 
-/** Teams and phases are objects with an id; the engine checks the rest of their settings. */
-const isListWithIds = (value: unknown): boolean =>
-  Array.isArray(value) &&
-  value.every(
-    (item) =>
-      typeof item === "object" &&
-      item !== null &&
-      typeof (item as { id?: unknown }).id === "string",
-  );
-
-const isNewTournament = (body: unknown): body is NewTournament => {
-  if (typeof body !== "object" || body === null) return false;
-  const { name, teams, phases } = body as Record<string, unknown>;
-  return typeof name === "string" && isListWithIds(teams) && isListWithIds(phases);
-};
+const isObject = (body: unknown): body is Record<string, unknown> =>
+  typeof body === "object" && body !== null && !Array.isArray(body);
 
 /** Seeds fit the database's 32-bit integer column; `randomInt` excludes this bound. */
 const SEED_LIMIT = 2 ** 31;
-
-const logger = new Logger("TournamentsService");
-
-/**
- * The engine trusts the shapes it is given, so a team or phase missing a nested setting makes
- * it throw a TypeError. That is answered as a 400 but logged as an error, since an engine bug
- * looks the same (#23 moves this check into the engine). Any other error stays a 500.
- */
-const validate = (tournament: Tournament): ConfigValidation => {
-  try {
-    return validateTournament(tournament);
-  } catch (error) {
-    if (error instanceof TypeError) {
-      logger.error(`tournament refused as malformed: ${error.message}`, error.stack);
-      throw new BadRequestException({ message: "a team or phase is malformed" });
-    }
-    throw error;
-  }
-};
 
 const toStored = (row: {
   id: string;
@@ -89,19 +51,22 @@ export class TournamentsService {
 
   /** Checks the settings with the engine, then stores the tournament with its draw seed. */
   async create(organizerId: string, body: unknown): Promise<StoredTournament> {
-    if (!isNewTournament(body)) {
+    if (!isObject(body)) {
       throw new BadRequestException({ message: "a tournament needs a name, teams and phases" });
     }
     const seed = randomInt(SEED_LIMIT);
-    const validation = validate({ ...body, id: "new", seed });
+    // The engine checks every setting's shape, so any exception here is an engine bug (a 500).
+    const validation = validateTournament({ ...body, id: "new", seed });
     if (!validation.valid) {
       throw new BadRequestException({ message: "invalid tournament", errors: validation.errors });
     }
+    // Only a body with the engine's shapes passes its validation.
+    const valid = body as unknown as NewTournament;
     const row = await this.prisma.tournament.create({
       data: {
-        name: body.name,
-        teams: body.teams as unknown as Prisma.InputJsonValue,
-        phases: body.phases as unknown as Prisma.InputJsonValue,
+        name: valid.name,
+        teams: valid.teams as unknown as Prisma.InputJsonValue,
+        phases: valid.phases as unknown as Prisma.InputJsonValue,
         seed,
         organizerId,
       },

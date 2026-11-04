@@ -54,6 +54,7 @@ The standings are recomputed from the pool's validated scores; a match without a
 
 Before a tournament starts, its settings are checked (a tournament is only created once they pass, and its draw seed is drawn then), so that a configuration that can never work is refused with an error naming the setting (a stable code, an English message for the logs and the path of the setting, which the UI translates).
 
+- Shape: settings may come from outside (the API's JSON), so a missing setting, a setting of the wrong type or an unknown kind is refused as malformed (`MALFORMED`) with its path, and the rest of that team or phase is not checked. The next phases are then checked as if every team went on.
 - Teams: at least 2, ids and seeds are unique, and a seed is a whole number from 1.
 - Phases: at least one, with unique ids.
 - Sets: at least 1 point to win, and a cap above the points to win.

@@ -138,6 +138,75 @@ describe("validateTournament", () => {
   });
 });
 
+describe("malformed input", () => {
+  const malformed = (input: unknown) => {
+    const result = validateTournament(input);
+    return result.valid
+      ? []
+      : result.errors.filter((e) => e.code === "MALFORMED").map((e) => [e.path, e.message]);
+  };
+
+  it("reports a missing nested setting with its path instead of throwing", () => {
+    const { set: _, ...noSet } = FFVB_SETS;
+    const t = withPhase(clubDay(), 0, { matchRules: noSet as unknown as MatchRules });
+    expect(malformed(t)).toEqual([[["phases", 0, "matchRules", "set"], "expected an object"]]);
+  });
+
+  it("reports an unknown kind and a mistyped setting", () => {
+    const t = withPhase(clubDay(), 1, {
+      format: { kind: "swiss" } as unknown as PhaseFormat,
+      tieBreakers: ["wins", 3] as unknown as Phase["tieBreakers"],
+    });
+    expect(malformed(t).map(([path]) => path)).toEqual([
+      ["phases", 1, "format", "kind"],
+      ["phases", 1, "tieBreakers", 1],
+    ]);
+  });
+
+  it("reports every malformed team and still checks the others", () => {
+    const t = clubDay();
+    const teams = [...t.teams, { id: "T1", name: "Again" }, { id: 7 }, null];
+    const result = validateTournament({ ...t, teams });
+    expect(result.valid ? [] : result.errors.map((e) => [e.code, e.path])).toEqual([
+      ["DUPLICATE_TEAM", ["teams", 16]],
+      ["MALFORMED", ["teams", 17, "id"]],
+      ["MALFORMED", ["teams", 17, "name"]],
+      ["MALFORMED", ["teams", 18]],
+    ]);
+  });
+
+  it("skips a malformed phase and checks the next ones as if every team went on", () => {
+    const t = withPhase(
+      withPhase(clubDay(), 0, {
+        qualification: { kind: "topOverall" } as unknown as Qualification,
+      }),
+      1,
+      { format: { kind: "pools", poolCount: 17, draw: "seeded" } },
+    );
+    expect(codes(t)).toEqual(["MALFORMED", "POOL_COUNT"]);
+  });
+
+  it("reads only own properties", () => {
+    const t = withPhase(clubDay(), 0, {
+      format: { kind: "constructor" } as unknown as PhaseFormat,
+    });
+    expect(malformed(t).map(([path]) => path)).toEqual([["phases", 0, "format", "kind"]]);
+  });
+
+  it("refuses a tournament that is not an object or has no lists", () => {
+    expect(malformed(null)).toEqual([[[], "expected an object"]]);
+    expect(malformed({ ...clubDay(), teams: {} }).map(([path]) => path)).toEqual([["teams"]]);
+  });
+
+  it("refuses malformed match rules", () => {
+    const result = validateMatchRules({ kind: "timed", durationMinutes: "20" });
+    expect(result.valid ? [] : result.errors.map((e) => [e.code, e.path])).toEqual([
+      ["MALFORMED", ["durationMinutes"]],
+      ["MALFORMED", ["drawAllowed"]],
+    ]);
+  });
+});
+
 describe("validateMatchRules", () => {
   it("accepts FFVB rules and refuses impossible ones", () => {
     expect(validateMatchRules(FFVB_MATCH_RULES)).toEqual({ valid: true });
@@ -391,6 +460,74 @@ describe("configuration properties", () => {
     fc.assert(
       fc.property(tournamentArb, fc.constantFrom(...mutations), (t, [code, mutate]) => {
         expect(codes(mutate(t))).toContain(code);
+      }),
+    );
+  });
+});
+
+type Json = unknown;
+
+/** Every path to a setting of `value`, nested ones included. */
+const settingPaths = (value: Json, path: (string | number)[] = []): (string | number)[][] => {
+  const children: [string | number, Json][] = Array.isArray(value)
+    ? value.map((v, i) => [i, v])
+    : typeof value === "object" && value !== null
+      ? Object.entries(value)
+      : [];
+  return children.flatMap(([key, child]) => [
+    [...path, key],
+    ...settingPaths(child, [...path, key]),
+  ]);
+};
+
+/** A copy of `value` with the setting at `path` replaced, or removed when `next` is undefined. */
+const replaceAt = (value: Json, [key, ...rest]: (string | number)[], next: Json): Json => {
+  if (key === undefined) return next;
+  if (Array.isArray(value)) {
+    return value.map((v, i) => (i === key ? replaceAt(v, rest, next) : v));
+  }
+  const record = value as Record<string, Json>;
+  const { [key]: child, ...others } = record;
+  const replaced = replaceAt(child, rest, next);
+  return replaced === undefined ? others : { ...others, [key]: replaced };
+};
+
+describe("malformed input properties", () => {
+  const anyJson = fc.oneof(fc.jsonValue(), fc.constant(undefined));
+
+  it("never throws when any setting is replaced by random JSON or removed", () => {
+    const broken = tournamentArb.chain((t) =>
+      fc.tuple(fc.constant(t), fc.constantFrom(...settingPaths(t)), anyJson),
+    );
+    fc.assert(
+      fc.property(broken, ([t, path, next]) => {
+        const result = validateTournament(replaceAt(t, path, next));
+        if (!result.valid) expect(result.errors.length).toBeGreaterThan(0);
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it("reports null in place of any setting as malformed at that setting's path", () => {
+    const nulled = tournamentArb.chain((t) =>
+      fc.tuple(fc.constant(t), fc.constantFrom(...settingPaths(t))),
+    );
+    fc.assert(
+      fc.property(nulled, ([t, path]) => {
+        const result = validateTournament(replaceAt(t, path, null));
+        const errors = result.valid ? [] : result.errors;
+        expect(errors).toContainEqual(expect.objectContaining({ code: "MALFORMED", path }));
+      }),
+    );
+  });
+
+  it("never throws on any JSON, as a tournament or as match rules", () => {
+    fc.assert(
+      fc.property(fc.jsonValue(), (input) => {
+        validateTournament(input);
+        validateMatchRules(input);
+        validateTournament({ ...clubDay(), teams: input });
+        validateTournament({ ...clubDay(), phases: [input] });
       }),
     );
   });
