@@ -11,6 +11,7 @@ These files are the functional source of truth for the project. Any change goes 
 | [scheduling.md](scheduling.md) | Schedule and courts |
 | [scoring.md](scoring.md) | Score entry |
 | [public-view.md](public-view.md) | Mobile public view, venue display, printouts |
+| [accounts.md](accounts.md) | Organizer accounts, sign-in and what stays public |
 | [api.md](api.md) | API routes and live updates used by the apps |
 | [out-of-scope.md](out-of-scope.md) | Out of scope for v1 and open questions |
 

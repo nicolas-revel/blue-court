@@ -4,7 +4,7 @@ A web app that runs a volleyball tournament end to end, whatever the club's rule
 
 ## Users
 
-- **Organizer**: creates the tournament, configures the formats, can correct the draw at any time.
+- **Organizer**: signs in with an account (see [accounts.md](accounts.md)), creates the tournament, configures the formats, can correct the draw at any time.
 - **Scoring table** (*table de marque*): enters and validates scores.
 - **Player or spectator**: follows the tournament on their phone, without an account.
 

@@ -8,8 +8,8 @@ import {
 } from "@blue-court/engine";
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "../generated/prisma/client.js";
+import { LiveGateway } from "../live.gateway.js";
 import { PrismaService } from "../prisma.service.js";
-import { TournamentsGateway } from "./tournaments.gateway.js";
 
 export interface NewTournament {
   readonly name: string;
@@ -49,9 +49,8 @@ const logger = new Logger("TournamentsService");
 
 /**
  * The engine trusts the shapes it is given, so a team or phase missing a nested setting makes
- * it throw a TypeError. That is answered as a 400 but logged as an error, since an engine bug looks
- * the same (#23 moves this check into the engine);
- * any other error stays a 500.
+ * it throw a TypeError. That is answered as a 400 but logged as an error, since an engine bug
+ * looks the same (#23 moves this check into the engine). Any other error stays a 500.
  */
 const validate = (tournament: Tournament): ConfigValidation => {
   try {
@@ -67,6 +66,7 @@ const validate = (tournament: Tournament): ConfigValidation => {
 
 const toStored = (row: {
   id: string;
+  organizerId: string;
   name: string;
   teams: Prisma.JsonValue;
   phases: Prisma.JsonValue;
@@ -84,11 +84,11 @@ const toStored = (row: {
 export class TournamentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly gateway: TournamentsGateway,
+    private readonly live: LiveGateway,
   ) {}
 
   /** Checks the settings with the engine, then stores the tournament with its draw seed. */
-  async create(body: unknown): Promise<StoredTournament> {
+  async create(organizerId: string, body: unknown): Promise<StoredTournament> {
     if (!isNewTournament(body)) {
       throw new BadRequestException({ message: "a tournament needs a name, teams and phases" });
     }
@@ -103,23 +103,32 @@ export class TournamentsService {
         teams: body.teams as unknown as Prisma.InputJsonValue,
         phases: body.phases as unknown as Prisma.InputJsonValue,
         seed,
+        organizerId,
       },
     });
     const tournament = toStored(row);
-    this.gateway.created({ id: tournament.id, name: tournament.name });
+    this.live.toOrganizer(organizerId, "tournament.created", {
+      id: tournament.id,
+      name: tournament.name,
+    });
     return tournament;
   }
 
-  async list(): Promise<TournamentSummary[]> {
+  /** The organizer's tournaments, newest first. */
+  async list(organizerId: string): Promise<TournamentSummary[]> {
     return this.prisma.tournament.findMany({
+      where: { organizerId },
       select: { id: true, name: true },
       orderBy: { createdAt: "desc" },
     });
   }
 
-  async get(id: string): Promise<StoredTournament> {
-    const row = await this.prisma.tournament.findUnique({ where: { id } });
-    if (row === null) throw new NotFoundException(`tournament ${id} does not exist`);
+  /** Another organizer's tournament is answered as not found, so its existence stays private. */
+  async get(organizerId: string, id: string): Promise<StoredTournament> {
+    const row = await this.prisma.tournament.findFirst({ where: { id, organizerId } });
+    if (row === null) {
+      throw new NotFoundException(`tournament ${id} does not exist`);
+    }
     return toStored(row);
   }
 }

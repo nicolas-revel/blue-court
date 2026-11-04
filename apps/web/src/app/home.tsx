@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
@@ -9,8 +10,8 @@ export function Home() {
       <p className="text-xl">{t("tagline")}</p>
       <p className="text-muted-foreground">{t("intro")}</p>
       <div>
-        <Button size="lg" disabled>
-          {t("start")}
+        <Button size="lg" asChild>
+          <Link href="/organizer">{t("start")}</Link>
         </Button>
       </div>
     </main>
