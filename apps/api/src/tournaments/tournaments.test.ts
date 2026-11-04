@@ -118,6 +118,22 @@ describe("tournaments API", () => {
     expect((await post({ name: "x", teams, phases: [{ id: "p" }] })).status).toBe(400);
   });
 
+  it("names the malformed setting with the engine's code and path", async () => {
+    const { set: _, ...noSet } = FFVB_MATCH_RULES as Extract<
+      typeof FFVB_MATCH_RULES,
+      { set: unknown }
+    >;
+    const response = await post({ name: "x", teams, phases: [{ ...pools, matchRules: noSet }] });
+    expect(response.status).toBe(400);
+    expect((await response.json()).errors).toEqual([
+      {
+        code: "MALFORMED",
+        message: "expected an object",
+        path: ["phases", 0, "matchRules", "set"],
+      },
+    ]);
+  });
+
   it("answers any body with a stored tournament or a 400, never a crash", async () => {
     const service = test.app.get(TournamentsService);
     const team = fc.record({ id: fc.string(), name: fc.string() });

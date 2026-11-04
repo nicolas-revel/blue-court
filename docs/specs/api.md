@@ -19,12 +19,12 @@ See [accounts.md](accounts.md). The session lives in an `HttpOnly`, `SameSite=La
 Every tournament route needs a session, and only sees the signed-in organizer's tournaments.
 
 - **Create** (`POST /tournaments`): the body gives the tournament's name, teams and phases, in the engine's shapes. The settings are checked first (see [match-rules.md](match-rules.md#configuration-validation)):
-  - every team and phase must be an object with an id and the nested settings the engine reads, otherwise the request is refused as malformed (until #23, a missing nested setting is detected when the engine fails to read it);
-  - settings that can never work are refused with every error found, each with its code, message and path;
+  - a body that is not an object is refused;
+  - every other problem is refused with every error found, each with its code, message and path: a missing or mistyped setting (`MALFORMED`), or a setting that can never work;
   - a valid tournament is stored with a draw seed drawn at random by the API (a whole number from 0 to 2^31 - 1). Every draw of the tournament derives from that seed, so it is returned with the tournament and the same tournament always gives the same pools.
 - **List** (`GET /tournaments`): the organizer's tournaments, id and name, newest first.
 - **Read** (`GET /tournaments/:id`): the whole tournament with its seed. An unknown id, or another organizer's tournament, is answered as not found.
-- Refused requests answer 400; anything else that fails is a server error.
+- Refused requests answer 400; anything else that fails is a server error. Since the engine reports malformed settings instead of throwing, a server error while checking a tournament is always an engine bug.
 
 ## Live updates
 
